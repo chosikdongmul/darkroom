@@ -1,0 +1,17 @@
+/* 샘플 위젯 공통 카드(미니멀). 위젯 폴더끼리는 파일을 참조할 수 없어 각 폴더에 복사해 둔다. */
+html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+.card {
+  position: absolute; inset: 12px; box-sizing: border-box; padding: 15px 18px;
+  border-radius: var(--dr-radius, 22px); background: var(--dr-bg, rgba(28, 28, 30, .72));
+  box-shadow: var(--dr-shadow, 0 2px 8px rgba(0, 0, 0, .28));
+  color: var(--dr-fg, #f5f5f7); font: 13px/1.35 var(--dr-font-ui, "Segoe UI", sans-serif);
+  font-variant-numeric: tabular-nums;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.label { font-size: 13px; font-weight: 600; color: var(--dr-fg, #f5f5f7); }
+.num { font-family: var(--dr-font-num, var(--dr-font-ui, sans-serif)); font-weight: var(--dr-num-weight, inherit); font-variation-settings: var(--dr-num-variation, normal); font-variant-numeric: tabular-nums lining-nums; }
+.muted { color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+.accent { color: var(--dr-accent, #ff9f45); }
+.bar { flex: none; height: 4px; border-radius: 2px; background: var(--dr-faint, rgba(235, 235, 245, .14)); overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--dr-accent, #ff9f45); border-radius: 2px; }
+[hidden] { display: none !important; }

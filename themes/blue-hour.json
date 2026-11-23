@@ -1,0 +1,18 @@
+{
+    "name":  "Blue Hour",
+    "tokens":  {
+                   "bg":  "rgba(31,29,60,0.78)",
+                   "fg":  "#f2effb",
+                   "muted":  "rgba(242,239,251,0.58)",
+                   "faint":  "rgba(242,239,251,0.15)",
+                   "accent":  "#ff9fc6",
+                   "inset":  "rgba(10,6,30,0.30)",
+                   "plot":  "rgba(10,6,30,0.32)",
+                   "gold":  "#ffc27a",
+                   "blue":  "#93abff",
+                   "radius":  "22px",
+                   "shadow":  "0 2px 8px rgba(12,8,40,.36)",
+                   "fontUi":  "\u0027Pretendard Variable\u0027, Pretendard, \u0027Darkroom Sans\u0027, \u0027Segoe UI\u0027, sans-serif",
+                   "fontNum":  "\u0027Pretendard Variable\u0027, Pretendard, \u0027Darkroom Sans\u0027, \u0027Segoe UI\u0027, sans-serif"
+               }
+}

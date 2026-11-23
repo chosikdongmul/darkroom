@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>Darkroom Manager</title>
+  <link rel="stylesheet" href="https://assets.darkroom/fonts/packs/pretendard/font.css">
+  <link rel="stylesheet" href="manager.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark"></span>Darkroom <em>Manager</em></div>
+    <div class="global">
+      <label class="field">색
+        <select id="theme"></select>
+      </label>
+      <label class="field">글꼴
+        <select id="font"></select>
+      </label>
+      <label class="switch"><input type="checkbox" id="allLocked"><span></span>전체 잠금</label>
+      <label class="switch"><input type="checkbox" id="allHidden"><span></span>전체 숨기기</label>
+    </div>
+  </header>
+
+  <main>
+    <aside class="panel">
+      <h2>위젯</h2>
+      <ul id="widgets" class="list"></ul>
+      <div id="invalid"></div>
+      <button class="ghost" data-open-folder>위젯 폴더 열기</button>
+    </aside>
+
+    <section class="panel detail" id="detail">
+      <p class="empty">왼쪽에서 위젯을 고르세요.</p>
+    </section>
+
+    <aside class="panel">
+      <h2>레이아웃</h2>
+      <ul id="layouts" class="list layouts"></ul>
+      <form id="saveLayout" class="inline">
+        <input id="layoutName" placeholder="새 레이아웃 이름" maxlength="60">
+        <button>현재 배치 저장</button>
+      </form>
+      <p class="hint">켜진 위젯·위치·창 모드·설정·테마를 저장합니다.</p>
+
+      <h2 class="gap">배경화면</h2>
+      <div class="env" id="wall">
+        <label class="switch"><input type="checkbox" id="wallOn"><span></span>사진 폴더로 배경화면 바꾸기</label>
+        <div class="two">
+          <label>간격(분) <input id="wallInterval" type="number" min="1" max="1440"></label>
+          <label>맞춤
+            <select id="wallFit"><option value="fill">채우기</option><option value="fit">맞춤</option><option value="center">가운데</option><option value="stretch">늘이기</option></select>
+          </label>
+        </div>
+        <div class="inline"><button type="button" class="ghost small" id="wallNext">다음 사진</button><span class="hint" id="wallStatus"></span></div>
+        <p class="hint">끄면 켜기 전 배경화면으로 돌아갑니다. 긴 변 1200px 미만 사진(작은 캡처 등)은 건너뜁니다.</p>
+      </div>
+
+      <h2 class="gap">환경</h2>
+      <form id="env" class="env">
+        <label>위치 이름 <input id="locName" maxlength="60"></label>
+        <div class="two">
+          <label>위도 <input id="lat" type="number" step="0.0001" min="-90" max="90"></label>
+          <label>경도 <input id="lon" type="number" step="0.0001" min="-180" max="180"></label>
+        </div>
+        <label>사진 폴더
+          <div class="inline"><input id="photosFolder" placeholder="기본: 사진 폴더"><button type="button" class="ghost small" id="pickFolder">찾기</button></div>
+        </label>
+        <label>사진 위젯 넘김 간격(초) <input id="photosInterval" type="number" min="5" max="3600"></label>
+        <button>적용</button>
+        <p class="hint">위치는 해·날씨 계산에 씁니다. 날씨 위젯을 켜면 위치가 Open-Meteo로 전송됩니다.</p>
+      </form>
+
+      <h2 class="gap">앱</h2>
+      <div class="env">
+        <label class="switch"><input type="checkbox" id="autoStart"><span></span>Windows 시작 시 실행</label>
+        <div class="inline"><button type="button" class="ghost small" id="openLogs">로그 폴더 열기</button><span class="hint" id="appVersion"></span></div>
+        <div class="inline"><button type="button" class="ghost small" id="updateBtn">업데이트 확인</button><span class="hint" id="updateText"></span></div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="manager.js"></script>
+</body>
+</html>

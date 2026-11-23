@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Golden Hour</title>
+<style>
+  :root { --gold: var(--dr-gold, #f4b54d); --blue: var(--dr-blue, #6e93e6); --blue-text: color-mix(in srgb, var(--blue) 70%, var(--dr-fg, #fff)); }
+  html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+  [hidden] { display: none !important; }
+  .card {
+    position: absolute; inset: 12px; box-sizing: border-box; padding: 16px 20px 15px;
+    border-radius: var(--dr-radius, 22px); background: var(--dr-bg, rgba(28, 28, 30, .72));
+    box-shadow: var(--dr-shadow, 0 2px 8px rgba(0, 0, 0, .28));
+    color: var(--dr-fg, #f5f5f7); font: 13px/1.3 var(--dr-font-ui, "Segoe UI", sans-serif);
+    font-variant-numeric: tabular-nums;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .muted { color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+  .top { display: flex; justify-content: space-between; align-items: center; }
+  .title { font-weight: 600; }
+  .title .muted { font-weight: 500; margin-left: 4px; }
+  .phase { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+  .phase i { width: 7px; height: 7px; border-radius: 50%; background: var(--dr-faint, rgba(235, 235, 245, .3)); }
+  .phase.goldenHour i { background: var(--gold); }
+  .phase.blueHour i { background: var(--blue); }
+  .phase.day i { background: var(--dr-fg, #fff); }
+
+  .count { font-family: var(--dr-font-num, sans-serif); font-weight: var(--dr-num-weight, 600); font-size: calc(40px * var(--dr-num-scale, 1)); line-height: 1;
+           letter-spacing: var(--dr-num-tracking, -0.03em); font-variation-settings: var(--dr-num-variation, normal);
+           font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; margin-top: 2px; }
+  .count small { font-size: 15px; font-weight: 500; letter-spacing: 0; margin: 0 8px 0 3px; color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+  .count.gold { color: var(--gold); }
+  .count.blue { color: var(--blue-text); }
+  .what { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .what b { font-weight: 600; }
+  .what b.gold { color: var(--gold); }
+  .what b.blue { color: var(--blue-text); }
+
+  /* 하루 타임라인: 0~24시, 블루·골든·낮 구간 + 지금 위치 */
+  .timeline { position: relative; height: 24px; }
+  .bar { position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 3px; overflow: hidden; background: var(--dr-faint, rgba(235, 235, 245, .14)); }
+  .seg { position: absolute; top: 0; bottom: 0; }
+  .seg.day { background: color-mix(in srgb, var(--dr-fg, #fff) 30%, transparent); }
+  .seg.gold { background: var(--gold); }
+  .seg.blue { background: var(--blue); }
+  .now { position: absolute; top: 1px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--dr-fg, #fff);
+         box-shadow: 0 0 0 3px var(--dr-bg, rgba(28, 28, 30, .9)); }
+  .hours { position: absolute; left: 0; right: 0; bottom: 0; height: 10px; font-size: 10px; line-height: 1; color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+  .hours span { position: absolute; transform: translateX(-50%); }
+  .hours span:first-child { transform: none; }
+  .hours span:last-child { transform: translateX(-100%); }
+  .ranges { font-size: 11.5px; font-weight: 500; color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+  .ranges i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); margin-right: 6px; vertical-align: 1px; }
+</style>
+</head>
+<body>
+<main class="card" data-drag>
+  <div class="top"><span class="title">골든아워<span class="muted" id="loc"></span></span><span class="phase" id="chip"><i></i><span id="phase">–</span></span></div>
+  <div class="count" id="count">–</div>
+  <div class="what"><b id="what">–</b> <span class="muted" id="when"></span></div>
+  <div class="timeline">
+    <div class="bar" id="bar"></div>
+    <div class="now" id="now"></div>
+    <div class="hours"><span style="left:0">0</span><span style="left:25%">6</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>
+  </div>
+  <div class="ranges"><i></i>골든아워 <span id="mg">–</span> · <span id="eg">–</span></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const PHASES = { day: "낮", goldenHour: "골든아워", blueHour: "블루아워", night: "밤" };
+  const hm = (d) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const parse = (iso) => (iso ? new Date(iso) : null);
+  let today = null, tomorrow = null, nowMs = Date.now(), lastKey = "";
+
+  /** 하루치 시각 → 구간 목록 */
+  function windows(day) {
+    if (!day) return [];
+    const m = day.morning, e = day.evening;
+    return [
+      { kind: "blue", label: "아침 블루아워", start: parse(m.blueStart), end: parse(m.goldenStart) },
+      { kind: "gold", label: "아침 골든아워", start: parse(m.goldenStart), end: parse(m.goldenEnd) },
+      { kind: "gold", label: "저녁 골든아워", start: parse(e.goldenStart), end: parse(e.blueStart) },
+      { kind: "blue", label: "저녁 블루아워", start: parse(e.blueStart), end: parse(e.blueEnd) },
+    ].filter((w) => w.start && w.end);
+  }
+
+  /** 남은 시간 → "10시간 20분" (숫자만 크게). 시각(10:20)과 헷갈리지 않게 단위를 붙인다. */
+  function setSpan(el, ms) {
+    const min = Math.max(0, Math.round(ms / 60000));
+    const h = Math.floor(min / 60), m = min % 60;
+    const unit = (t) => { const s = document.createElement("small"); s.textContent = t; return s; };
+    el.replaceChildren(...(h > 0 ? [String(h), unit("시간")] : []), String(m), unit("분"));
+  }
+
+  function drawTimeline() {
+    const bar = $("bar");
+    bar.replaceChildren();
+    if (!today) return;
+    const dayStart = new Date(today.date + "T00:00").getTime();
+    const pct = (d) => Math.max(0, Math.min(100, ((d.getTime() - dayStart) / 864e5) * 100));
+    const add = (cls, a, b) => {
+      if (!a || !b) return;
+      const s = document.createElement("div");
+      s.className = "seg " + cls;
+      s.style.left = pct(a) + "%";
+      s.style.width = Math.max(0.4, pct(b) - pct(a)) + "%";
+      bar.append(s);
+    };
+    add("day", parse(today.morning.goldenEnd), parse(today.evening.goldenStart));
+    for (const w of windows(today)) add(w.kind, w.start, w.end);
+    const m = today.morning, e = today.evening;
+    $("mg").textContent = m.goldenStart && m.goldenEnd ? `아침 ${hm(parse(m.goldenStart))}–${hm(parse(m.goldenEnd))}` : "아침 없음";
+    $("eg").textContent = e.goldenStart && e.blueStart ? `저녁 ${hm(parse(e.goldenStart))}–${hm(parse(e.blueStart))}` : "저녁 없음";
+    $("loc").textContent = today.location.name;
+  }
+
+  function render() {
+    const now = new Date(nowMs);
+    // 분이 바뀔 때만 다시 그린다
+    const key = `${now.getHours()}:${now.getMinutes()}|${today && today.date}|${darkroom.settings.target}`;
+    if (key === lastKey) return;
+    lastKey = key;
+
+    if (today) {
+      const dayStart = new Date(today.date + "T00:00").getTime();
+      $("now").style.left = Math.max(0, Math.min(100, ((nowMs - dayStart) / 864e5) * 100)) + "%";
+    }
+    const target = darkroom.settings.target || "둘 다";
+    const all = [...windows(today), ...windows(tomorrow)]
+      .filter((w) => target === "둘 다" || (target === "골든아워" ? w.kind === "gold" : w.kind === "blue"))
+      .sort((a, b) => a.start - b.start);
+    const current = all.find((w) => w.start <= now && now < w.end);
+    const next = all.find((w) => w.start > now);
+    const cls = (w) => (w.kind === "gold" ? "gold" : "blue");
+    if (current) {
+      setSpan($("count"), current.end - now);
+      $("count").className = "count " + cls(current);
+      $("what").textContent = `${current.label} 진행 중`;
+      $("what").className = cls(current);
+      $("when").textContent = `${hm(current.end)}까지 남음`;
+    } else if (next) {
+      setSpan($("count"), next.start - now);
+      $("count").className = "count";
+      $("what").textContent = `${next.label}까지`;
+      $("what").className = cls(next);
+      const isTomorrow = next.start.getDate() !== now.getDate();
+      $("when").textContent = `${isTomorrow ? "내일 " : ""}${hm(next.start)}–${hm(next.end)}`;
+    } else {
+      $("count").textContent = "–";
+      $("what").textContent = "이 위치에선 오늘·내일 해당 구간 없음";
+      $("when").textContent = "";
+    }
+  }
+
+  darkroom.subscribe("sun.today", (t) => { today = t; lastKey = ""; drawTimeline(); render(); });
+  darkroom.subscribe("sun.tomorrow", (t) => { tomorrow = t; lastKey = ""; render(); });
+  darkroom.subscribe("sun.phase", (p) => { $("phase").textContent = PHASES[p] || p; $("chip").className = "phase " + p; });
+  darkroom.subscribe("time.now", (v) => { nowMs = v.epochMs; render(); });
+  darkroom.onSettingsChanged(() => { lastKey = ""; render(); });
+</script>
+</body>
+</html>

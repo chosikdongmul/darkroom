@@ -1,0 +1,46 @@
+[
+  {
+    "key": "pretendard", "name": "0 · Pretendard", "description": "깔끔하고 중립적인 기본",
+    "ui": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif",
+    "num": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif",
+    "numWeight": 600, "numTracking": "-0.035em", "numScale": 1, "numStyle": "normal"
+  },
+  {
+    "key": "gallery", "name": "A · 갤러리 캡션", "description": "Instrument Serif · 함렛",
+    "ui": "Hahmlet, 'Pretendard Variable', Pretendard, serif",
+    "num": "'Instrument Serif', Georgia, serif",
+    "numWeight": 400, "numTracking": "-0.02em", "numScale": 1.18, "numStyle": "italic"
+  },
+  {
+    "key": "lab", "name": "B · 현상소 영수증", "description": "IBM Plex Mono · IBM Plex Sans KR",
+    "ui": "'IBM Plex Sans KR', 'Pretendard Variable', Pretendard, sans-serif",
+    "num": "'IBM Plex Mono', Consolas, monospace",
+    "numWeight": 500, "numTracking": "-0.04em", "numScale": 0.9, "numStyle": "normal"
+  },
+  {
+    "key": "magazine", "name": "C · 70년대 잡지", "description": "Fraunces · 고운바탕",
+    "ui": "'Gowun Batang', 'Pretendard Variable', Pretendard, serif",
+    "num": "Fraunces, Georgia, serif",
+    "numWeight": 600, "numTracking": "-0.03em", "numScale": 1, "numStyle": "italic",
+    "numVariation": "\"SOFT\" 100, \"WONK\" 1"
+  },
+  {
+    "key": "letterpress", "name": "D · 활판 인쇄", "description": "Cormorant Garamond · 송명",
+    "ui": "'Song Myung', 'Pretendard Variable', Pretendard, serif",
+    "num": "'Cormorant Garamond', Garamond, serif",
+    "numWeight": 600, "numTracking": "-0.01em", "numScale": 1.15, "numStyle": "italic"
+  },
+  {
+    "key": "engraved", "name": "E · 카메라 각인", "description": "Space Grotesk · Gothic A1",
+    "ui": "'Gothic A1', 'Pretendard Variable', Pretendard, sans-serif",
+    "num": "'Space Grotesk', 'Segoe UI', sans-serif",
+    "numWeight": 600, "numTracking": "-0.045em", "numScale": 1, "numStyle": "normal"
+  },
+  {
+    "key": "credits", "name": "F · 영화 크레딧", "description": "Bodoni Moda · 나눔명조",
+    "ui": "'Nanum Myeongjo', 'Pretendard Variable', Pretendard, serif",
+    "num": "'Bodoni Moda', Didot, serif",
+    "numWeight": 500, "numTracking": "-0.02em", "numScale": 1.04, "numStyle": "italic",
+    "numVariation": "\"opsz\" 96"
+  }
+]

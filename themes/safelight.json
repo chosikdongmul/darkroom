@@ -1,0 +1,18 @@
+{
+    "name":  "Safelight Red",
+    "tokens":  {
+                   "bg":  "rgba(20,8,8,0.80)",
+                   "fg":  "#ff6b55",
+                   "muted":  "rgba(255,107,85,0.55)",
+                   "faint":  "rgba(255,107,85,0.16)",
+                   "accent":  "#ffb199",
+                   "inset":  "rgba(0,0,0,0.30)",
+                   "plot":  "rgba(0,0,0,0.30)",
+                   "gold":  "#ff9a6b",
+                   "blue":  "#ff6b55",
+                   "radius":  "16px",
+                   "shadow":  "0 2px 8px rgba(120,10,0,.40)",
+                   "fontUi":  "\u0027Pretendard Variable\u0027, Pretendard, \u0027Darkroom Sans\u0027, \u0027Segoe UI\u0027, sans-serif",
+                   "fontNum":  "\u0027Pretendard Variable\u0027, Pretendard, \u0027Darkroom Sans\u0027, \u0027Segoe UI\u0027, sans-serif"
+               }
+}

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>Exposure Clock</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card" data-drag>
+    <div class="row">
+      <div class="time"><span id="ampm" class="ampm"></span><span id="hm">--:--</span><span id="sec" class="sec">--</span></div>
+      <div class="date"><span id="md">--</span><span id="day" class="muted">--</span></div>
+    </div>
+    <div id="decor" class="decor">
+      <div class="exp"><span id="exp" title="지금 배경화면 사진의 조리개 · 셔터 · ISO"></span><span id="ev" class="muted"></span></div>
+      <div class="meter" title="30분 뒤 빛의 변화 (−2 ~ +2 스톱)">
+        <div class="track"></div><div class="mid"></div><div class="dot" id="needle"></div>
+      </div>
+    </div>
+  </main>
+  <script src="main.js"></script>
+</body>
+</html>

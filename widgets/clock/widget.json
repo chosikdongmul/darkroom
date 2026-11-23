@@ -1,0 +1,15 @@
+{
+  "id": "darkroom.clock",
+  "name": "Exposure Clock",
+  "version": "0.3.0",
+  "entry": "index.html",
+  "size": { "width": 360, "height": 168, "resizable": false, "inset": 12 },
+  "windowMode": "desktop",
+  "subscribe": ["time.now", "sun.position", "wallpaper.current"],
+  "permissions": [],
+  "settings": {
+    "format24h": { "type": "bool", "default": true, "label": "24시간제" },
+    "showSeconds": { "type": "bool", "default": true, "label": "초 표시" },
+    "showDecor": { "type": "bool", "default": true, "label": "노출값 줄" }
+  }
+}

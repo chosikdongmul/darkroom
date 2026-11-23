@@ -1,0 +1,7 @@
+{
+  "name": "기본",
+  "theme": "darkroom-gray",
+  "widgets": {
+    "darkroom.clock": { "x": 48, "y": 48 }
+  }
+}

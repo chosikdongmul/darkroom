@@ -1,0 +1,12 @@
+{
+  "id": "darkroom.film-frame",
+  "name": "Film Frame",
+  "version": "0.1.0",
+  "size": { "width": 360, "height": 260, "inset": 12 },
+  "windowMode": "desktop",
+  "subscribe": ["photos.current", "photos.status"],
+  "settings": {
+    "stock": { "type": "string", "default": "DARKROOM 400", "label": "필름 이름(가장자리 인쇄)" },
+    "showExif": { "type": "bool", "default": true, "label": "촬영 정보 인쇄" }
+  }
+}

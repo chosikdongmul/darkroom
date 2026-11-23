@@ -1,0 +1,65 @@
+/* 테마 토큰은 SDK가 --dr-* 변수로 넣는다. 여기 값은 SDK 없이 브라우저로 열었을 때의 기본값. */
+:root {
+  --dr-bg: rgba(28, 28, 30, 0.72);
+  --dr-fg: #f5f5f7;
+  --dr-muted: rgba(235, 235, 245, 0.56);
+  --dr-faint: rgba(235, 235, 245, 0.14);
+  --dr-accent: #ff9f45;
+  --dr-radius: 22px;
+  --dr-shadow: 0 2px 8px rgba(0, 0, 0, .28);
+  --dr-font-ui: "Pretendard Variable", Pretendard, "Darkroom Sans", "Segoe UI", sans-serif;
+  --dr-font-num: "Pretendard Variable", Pretendard, "Darkroom Sans", "Segoe UI", sans-serif;
+}
+
+html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+[hidden] { display: none !important; }
+
+.card {
+  position: absolute;
+  inset: 14px; /* widget.json size.inset: 그림자용 투명 여백 */
+  box-sizing: border-box;
+  padding: 16px 20px 16px 22px;
+  border-radius: var(--dr-radius);
+  background: var(--dr-bg);
+  box-shadow: var(--dr-shadow);
+  color: var(--dr-fg);
+  font: 13px/1.3 var(--dr-font-ui);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.muted { color: var(--dr-muted); }
+
+.row { display: flex; align-items: flex-start; justify-content: space-between; }
+/* 큰 숫자는 글꼴 조합의 토큰을 따른다(세리프는 같은 크기에서 작아 보여 --dr-num-scale로 키움) */
+.time {
+  font-family: var(--dr-font-num); font-weight: var(--dr-num-weight, 600);
+  font-size: calc(56px * var(--dr-num-scale, 1)); line-height: 0.95;
+  letter-spacing: var(--dr-num-tracking, -0.035em); font-variation-settings: var(--dr-num-variation, normal);
+  font-variant-numeric: tabular-nums lining-nums; white-space: nowrap;
+}
+.sec { font-size: 0.4em; font-weight: var(--dr-num-weight, 500); font-style: var(--dr-num-style, normal); letter-spacing: 0; color: var(--dr-muted); margin-left: 6px; }
+.ampm { font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--dr-muted); margin-right: 6px; }
+
+.date { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; padding-top: 4px; font-size: 14px; font-weight: 600; }
+.date .muted { font-size: 12.5px; font-weight: 500; }
+
+.decor { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.exp { display: flex; flex-direction: column; gap: 3px; white-space: nowrap; }
+#exp { font-family: var(--dr-font-num); font-size: calc(14px * var(--dr-num-scale, 1)); font-weight: var(--dr-num-weight, 600); font-style: var(--dr-num-style, normal); }
+#exp.none { color: var(--dr-muted); } /* 배경화면에 EXIF가 없을 때: "f/– · – · ISO –"를 흐리게 */
+#ev { font-size: 11.5px; font-weight: 500; }
+
+/* 노출 변화 미터: 가는 선 위의 점. 가운데(0)에서 왼쪽 = 30분 뒤 어두워짐 */
+.meter { position: relative; width: 72px; height: 14px; flex: none; margin-bottom: 2px; }
+.track { position: absolute; left: 0; right: 0; top: 6px; height: 2px; border-radius: 1px; background: var(--dr-faint); }
+.mid { position: absolute; left: 50%; top: 3px; width: 1px; height: 8px; margin-left: -0.5px; background: var(--dr-muted); }
+.dot {
+  position: absolute; left: 0; right: 0; top: 2px; height: 10px;
+  transform: translateX(50%); /* 값이 바뀔 때만 움직임(애니메이션 없음) */
+}
+.dot::before {
+  content: ""; position: absolute; left: -5px; top: 0; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--dr-accent);
+}

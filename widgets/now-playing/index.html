@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .card { flex-direction: row; align-items: center; gap: 14px; padding: 12px 14px; }
+  .art { width: 82px; height: 82px; flex: none; border-radius: 8px; background: var(--dr-inset, rgba(0, 0, 0, .35)) center / cover no-repeat; }
+  .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .title { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+  .ctl { display: flex; gap: 4px; align-items: center; }
+  .ctl button { background: none; border: 0; color: var(--dr-fg, #eee); font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+  .ctl button:hover { background: color-mix(in srgb, var(--dr-fg, #fff) 12%, transparent); }
+  .time { margin-left: auto; font-size: 11px; }
+</style>
+</head>
+<body>
+<main class="card" data-drag>
+  <div class="art" id="art"></div>
+  <div class="info">
+    <div class="label muted" id="app">재생 중</div>
+    <div class="title" id="title">재생 중인 미디어 없음</div>
+    <div class="artist muted" id="artist"></div>
+    <div class="bar"><i id="bar"></i></div>
+    <div class="ctl">
+      <button data-cmd="previous" title="이전">⏮</button>
+      <button data-cmd="playPause" id="pp" title="재생/일시정지">▶</button>
+      <button data-cmd="next" title="다음">⏭</button>
+      <span class="time num muted" id="time"></span>
+    </div>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  let np = null, base = 0, baseAt = 0;
+  function tick() {
+    if (!np || !np.active || np.durationSec == null) { $("time").textContent = ""; $("bar").style.width = "0"; return; }
+    const pos = Math.min(np.durationSec, base + (np.status === "playing" ? (Date.now() - baseAt) / 1000 : 0));
+    $("time").textContent = `${mmss(pos)} / ${mmss(np.durationSec)}`;
+    $("bar").style.width = `${(pos / np.durationSec) * 100}%`;
+  }
+  darkroom.subscribe("media.nowPlaying", (v) => {
+    np = v; base = v.positionSec ?? 0; baseAt = Date.now();
+    $("app").textContent = v.active ? v.app : "재생 중";
+    $("title").textContent = v.active ? (v.title || "(제목 없음)") : "재생 중인 미디어 없음";
+    $("artist").textContent = v.active ? [v.artist, v.album].filter(Boolean).join(" · ") : "";
+    $("pp").textContent = v.status === "playing" ? "⏸" : "▶";
+    tick();
+  });
+  darkroom.subscribe("media.artwork", (url) => { $("art").style.backgroundImage = url ? `url("${url}")` : ""; });
+  document.querySelectorAll("[data-cmd]").forEach((b) =>
+    b.addEventListener("click", () => darkroom.action({ type: "media", command: b.dataset.cmd })));
+  setInterval(tick, 1000); // 재생 중일 때 진행 막대를 로컬로 움직인다(호스트 메시지는 2초마다)
+</script>
+</body>
+</html>

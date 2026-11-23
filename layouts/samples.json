@@ -1,0 +1,83 @@
+{
+    "name":  "샘플 위젯",
+    "theme":  "darkroom-gray",
+    "widgets":  {
+                    "darkroom.clock":  {
+                                           "enabled":  true,
+                                           "x":  40,
+                                           "y":  603,
+                                           "opacity":  1,
+                                           "locked":  false,
+                                           "hoverFade":  false,
+                                           "settings":  {
+
+                                                        }
+                                       },
+                    "darkroom.sample.system":  {
+                                                   "enabled":  true,
+                                                   "x":  2406,
+                                                   "y":  702,
+                                                   "opacity":  1,
+                                                   "locked":  false,
+                                                   "hoverFade":  false,
+                                                   "settings":  {
+
+                                                                }
+                                               },
+                    "darkroom.sample.battery":  {
+                                                    "enabled":  true,
+                                                    "x":  1158,
+                                                    "y":  160,
+                                                    "opacity":  1,
+                                                    "locked":  false,
+                                                    "hoverFade":  false,
+                                                    "settings":  {
+
+                                                                 }
+                                                },
+                    "darkroom.sample.sun":  {
+                                                "enabled":  true,
+                                                "x":  1638,
+                                                "y":  40,
+                                                "opacity":  1,
+                                                "locked":  false,
+                                                "hoverFade":  false,
+                                                "settings":  {
+
+                                                             }
+                                            },
+                    "darkroom.sample.weather":  {
+                                                    "enabled":  true,
+                                                    "x":  1854,
+                                                    "y":  1374,
+                                                    "opacity":  1,
+                                                    "locked":  false,
+                                                    "hoverFade":  false,
+                                                    "settings":  {
+
+                                                                 }
+                                                },
+                    "darkroom.sample.photo":  {
+                                                  "enabled":  true,
+                                                  "x":  43,
+                                                  "y":  954,
+                                                  "opacity":  1,
+                                                  "locked":  false,
+                                                  "hoverFade":  false,
+                                                  "settings":  {
+
+                                                               }
+                                              },
+                    "darkroom.sample.media":  {
+                                                  "enabled":  true,
+                                                  "x":  523,
+                                                  "y":  102,
+                                                  "opacity":  1,
+                                                  "locked":  false,
+                                                  "hoverFade":  false,
+                                                  "settings":  {
+
+                                                               }
+                                              }
+                }
+}

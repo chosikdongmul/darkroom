@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .card { padding: 10px; gap: 8px; }
+  .frame { flex: 1; min-height: 0; border-radius: max(4px, calc(var(--dr-radius, 18px) - 8px)); overflow: hidden; background: var(--dr-inset, rgba(0, 0, 0, .35)); position: relative; }
+  .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .6s ease; }
+  .frame img.show { opacity: 1; }
+  .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dr-muted, #888); font-size: 12px; padding: 12px; text-align: center; white-space: pre-line; }
+  .exif { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; padding: 0 4px 2px; white-space: nowrap; }
+  .exif span { overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+<main class="card" data-drag>
+  <div class="frame"><img id="a" alt=""><img id="b" alt=""><div class="empty" id="empty">사진을 불러오는 중…</div></div>
+  <div class="exif" id="exif"><span id="cam" class="muted"></span><span id="exp" class="num accent"></span></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let front = $("a"), back = $("b"), current = null;
+  function showExif(p) {
+    const e = p && p.exif;
+    $("exif").hidden = !darkroom.settings.showExif || !p;
+    $("cam").textContent = e && (e.camera || e.lens) ? [e.camera, e.lens].filter(Boolean).join(" · ") : (p ? p.name : "");
+    $("exp").textContent = e ? [e.focalLength && `${Math.round(e.focalLength)}mm`, e.aperture, e.shutter, e.iso && `ISO ${e.iso}`].filter(Boolean).join("  ") : "";
+  }
+  darkroom.subscribe("photos.current", (p) => {
+    current = p;
+    showExif(p);
+    if (!p) return;
+    // 다음 사진을 뒤쪽 이미지에 불러온 뒤 교차 페이드 (페이드는 사진이 바뀔 때만)
+    back.onload = () => {
+      back.classList.add("show"); front.classList.remove("show");
+      const old = front;
+      [front, back] = [back, front];
+      // 페이드가 끝나면 이전 사진을 놓아 디코딩된 메모리를 돌려준다
+      setTimeout(() => { if (old !== front) { old.onload = old.onerror = null; old.removeAttribute("src"); } }, 800);
+      $("empty").hidden = true;
+    };
+    back.onerror = () => { $("empty").hidden = false; $("empty").textContent = `열 수 없음: ${p.name}`; };
+    back.src = p.url;
+  });
+  darkroom.subscribe("photos.status", (s) => {
+    if (!s.ok) { $("empty").hidden = false; $("empty").textContent = `${s.error}\n${s.folder}`; }
+  });
+  darkroom.onSettingsChanged(() => showExif(current));
+</script>
+</body>
+</html>

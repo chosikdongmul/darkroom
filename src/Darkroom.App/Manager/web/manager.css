@@ -1,0 +1,121 @@
+/* 내장 글꼴 "Darkroom Sans"는 index.html에서 https://assets.darkroom/fonts/darkroom-sans.css 로 불러온다(호스트가 sdk/fonts에서 응답). */
+
+:root {
+  --bg: #1c1c1e;
+  --panel: #252527;
+  --raised: #2f2f32;
+  --line: #3a3a3d;
+  --fg: #f5f5f7;
+  --muted: #98989f;
+  --accent: #ff9f45;
+  --danger: #ff6b5c;
+  --radius: 14px;
+  font: 13px/1.45 "Pretendard Variable", Pretendard, "Darkroom Sans", "Segoe UI", "Malgun Gothic", sans-serif;
+  font-variant-numeric: tabular-nums;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); }
+body { display: flex; flex-direction: column; user-select: none; }
+
+header {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 12px 20px; border-bottom: 1px solid var(--line);
+}
+.brand { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 9px; }
+.brand em { font-style: normal; font-weight: 500; color: var(--muted); }
+.mark { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--accent); }
+.global { display: flex; align-items: center; gap: 18px; }
+
+main {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 250px 1fr 270px; gap: 12px; padding: 12px;
+}
+.panel { background: var(--panel); border-radius: var(--radius); padding: 14px; overflow: auto; }
+h2 { margin: 0 0 10px; font-size: 13px; color: var(--fg); font-weight: 600; }
+h3 { margin: 20px 0 8px; font-size: 12px; color: var(--muted); font-weight: 600; }
+
+.list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.list li {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer;
+}
+.list li:hover { background: var(--raised); }
+.list li.selected { background: var(--raised); box-shadow: inset 3px 0 0 var(--accent); }
+.list .grow { flex: 1; min-width: 0; }
+.list .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list .sub { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #555; flex: none; }
+.dot.on { background: var(--accent); }
+.dot.err { background: var(--danger); }
+
+.invalid { border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 12px; }
+.invalid b { color: var(--danger); display: block; }
+
+.detail .empty { color: var(--muted); }
+.title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+.title h1 { margin: 0; font-size: 20px; font-weight: 600; }
+.title .ver { color: var(--muted); }
+.meta { color: var(--muted); font-size: 12px; margin-bottom: 6px; word-break: break-all; }
+.error { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+
+.grid { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px 14px; align-items: center; }
+.grid > * { min-width: 0; }
+.grid select { max-width: 100%; }
+.detail { overflow-x: hidden; }
+.grid > label:first-child, .grid .lbl { color: var(--muted); }
+
+.field { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+select, input[type=text], input:not([type]), input[type=number] {
+  background: var(--raised); color: var(--fg); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 8px; font: inherit; min-width: 0;
+}
+select:focus, input:focus { outline: 1px solid var(--accent); }
+input[type=range] { accent-color: var(--accent); width: 100%; }
+
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.switch input { display: none; }
+.switch span { width: 30px; height: 16px; border-radius: 8px; background: #555; position: relative; transition: background .15s; flex: none; }
+.switch span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--fg); transition: left .15s; }
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { left: 16px; }
+
+button {
+  background: var(--accent); color: #1c1c1c; border: 0; border-radius: 6px; padding: 6px 12px;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+button:hover { filter: brightness(1.08); }
+button.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); font-weight: 400; }
+button.ghost:hover { background: var(--raised); }
+button.small { padding: 3px 8px; font-size: 12px; }
+button.danger { background: transparent; color: var(--danger); border: 1px solid transparent; }
+button.danger:hover { border-color: var(--danger); }
+
+.actions { display: flex; gap: 8px; margin-top: 18px; }
+.inline { display: flex; gap: 6px; }
+.inline input { flex: 1; }
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+h2.gap { margin-top: 22px; }
+.env { display: flex; flex-direction: column; gap: 8px; }
+.env label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; }
+.env .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.env input { width: 100%; }
+.env > button { align-self: flex-start; }
+.env label.switch { flex-direction: row; align-items: center; gap: 8px; color: var(--fg); font-size: 13px; }
+.env .inline { align-items: center; gap: 10px; }
+.env .inline .hint { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button:disabled { opacity: .45; cursor: default; }
+button { white-space: nowrap; flex: none; }
+.global { flex-wrap: wrap; justify-content: flex-end; }
+.global .field, .global .switch { white-space: nowrap; }
+#font { max-width: 240px; }
+.layouts li { cursor: default; }
+.layouts .btns { display: flex; gap: 4px; }
+
+#toast {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%) translateY(20px);
+  background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px;
+  opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translateX(-50%); }
+#toast.err { border-color: var(--danger); color: #ffd2ca; }

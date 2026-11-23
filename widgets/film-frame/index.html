@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Film Frame</title>
+<style>
+  :root { --film: #141210; --edge: #e88a2a; }
+  html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+  /* 필름 스트립: 위아래 퍼포레이션 구멍은 실제로 투명 → 바탕화면이 비친다 */
+  .strip {
+    position: absolute; inset: 12px; box-sizing: border-box;
+    display: flex; flex-direction: column;
+    border-radius: 6px; overflow: hidden;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .45));
+  }
+  .band { height: 13px; background: var(--film); display: flex; align-items: center; gap: 18px; padding: 0 14px;
+          font: 700 8.5px/1 var(--dr-font-ui, sans-serif); letter-spacing: 1.6px; font-variant-numeric: tabular-nums; color: var(--edge); white-space: nowrap; overflow: hidden; }
+  .band .exif { margin-left: auto; font-weight: 500; letter-spacing: .6px; opacity: .9; }
+  .perf {
+    height: 18px; flex: none;
+    background:
+      linear-gradient(var(--film), var(--film)) top / 100% 5px no-repeat,
+      linear-gradient(var(--film), var(--film)) bottom / 100% 5px no-repeat,
+      repeating-linear-gradient(90deg, var(--film) 0 7px, transparent 7px 15px) center / 100% 8px no-repeat;
+  }
+  .frame { position: relative; flex: 1; min-height: 0; background: var(--film); padding: 0 10px; }
+  .frame .win { position: relative; width: 100%; height: 100%; border-radius: 2px; overflow: hidden; background: #050505; }
+  .win img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .6s ease; }
+  .win img.show { opacity: 1; }
+  .empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; white-space: pre-line;
+           font: 12px/1.4 var(--dr-font-ui, sans-serif); color: #8a8478; padding: 12px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="strip" data-drag>
+  <div class="band"><span id="stock">DARKROOM 400</span><span id="num1">▸ 1</span><span id="num1a">1A</span></div>
+  <div class="perf"></div>
+  <div class="frame"><div class="win"><img id="a" alt=""><img id="b" alt=""><div class="empty" id="empty">사진을 불러오는 중…</div></div></div>
+  <div class="perf"></div>
+  <div class="band"><span id="num2">1</span><span class="exif" id="exif"></span></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let front = $("a"), back = $("b"), current = null;
+
+  function printEdges(p) {
+    const s = darkroom.settings;
+    $("stock").textContent = (s.stock || "DARKROOM 400").toUpperCase();
+    const n = p ? (p.index % 36) + 1 : 1;
+    $("num1").textContent = `▸ ${n}`;
+    $("num1a").textContent = `${n}A`;
+    $("num2").textContent = String(n);
+    const e = p && p.exif;
+    $("exif").hidden = !s.showExif;
+    $("exif").textContent = e
+      ? [e.camera, e.focalLength && `${Math.round(e.focalLength)}MM`, e.aperture && e.aperture.toUpperCase(), e.shutter, e.iso && `ISO${e.iso}`, e.takenAt && e.takenAt.slice(0, 10).replaceAll("-", ".")]
+          .filter(Boolean).join("  ")
+      : (p ? p.name : "");
+  }
+
+  darkroom.subscribe("photos.current", (p) => {
+    current = p;
+    printEdges(p);
+    if (!p) return;
+    back.onload = () => {
+      back.classList.add("show"); front.classList.remove("show");
+      const old = front;
+      [front, back] = [back, front];
+      setTimeout(() => { if (old !== front) { old.onload = old.onerror = null; old.removeAttribute("src"); } }, 800);
+      $("empty").hidden = true;
+    };
+    back.onerror = () => { $("empty").hidden = false; $("empty").textContent = `열 수 없음: ${p.name}`; };
+    back.src = p.url;
+  });
+  darkroom.subscribe("photos.status", (s) => {
+    if (!s.ok) { $("empty").hidden = false; $("empty").textContent = `${s.error}\n${s.folder}`; }
+  });
+  darkroom.onSettingsChanged(() => printEdges(current));
+</script>
+</body>
+</html>

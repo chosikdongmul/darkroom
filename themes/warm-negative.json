@@ -1,0 +1,18 @@
+{
+    "name":  "Warm Negative",
+    "tokens":  {
+                   "bg":  "rgba(46,35,29,0.76)",
+                   "fg":  "#f7ede0",
+                   "muted":  "rgba(247,237,224,0.56)",
+                   "faint":  "rgba(247,237,224,0.14)",
+                   "accent":  "#ee9b63",
+                   "inset":  "rgba(20,10,4,0.28)",
+                   "plot":  "rgba(20,10,4,0.30)",
+                   "gold":  "#f2b864",
+                   "blue":  "#93a9d6",
+                   "radius":  "22px",
+                   "shadow":  "0 2px 8px rgba(30,12,0,.32)",
+                   "fontUi":  "\u0027Pretendard Variable\u0027, Pretendard, \u0027Darkroom Sans\u0027, \u0027Segoe UI\u0027, sans-serif",
+                   "fontNum":  "\u0027Pretendard Variable\u0027, Pretendard, \u0027Darkroom Sans\u0027, \u0027Segoe UI\u0027, sans-serif"
+               }
+}

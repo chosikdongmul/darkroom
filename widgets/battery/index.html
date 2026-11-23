@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .top .muted { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .big { font: 600 32px/1 var(--dr-font-num, sans-serif); letter-spacing: -0.02em; }
+</style>
+</head>
+<body>
+<main class="card" data-drag>
+  <div class="top"><span class="label">배터리</span><span class="muted" id="state">–</span></div>
+  <div class="big" id="pct">–</div>
+  <div class="bar"><i id="bar"></i></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  darkroom.subscribe("battery.status", (b) => {
+    if (!b.hasBattery) {
+      $("pct").textContent = "AC"; $("state").textContent = "배터리 없음"; $("bar").style.width = "100%";
+      return;
+    }
+    $("pct").textContent = b.percent == null ? "–" : `${b.percent}%`;
+    $("bar").style.width = `${b.percent ?? 0}%`;
+    const left = b.remainingMinutes != null ? ` · ${Math.floor(b.remainingMinutes / 60)}시간 ${b.remainingMinutes % 60}분` : "";
+    $("state").textContent = (b.charging ? "충전 중" : b.pluggedIn ? "전원 연결" : "배터리 사용") + left + (b.saver ? " · 절약" : "");
+  });
+</script>
+</body>
+</html>

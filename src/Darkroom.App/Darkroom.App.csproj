@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Darkroom</AssemblyName>
+    <RootNamespace>Darkroom.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>Darkroom.App.Program</StartupObject>
+    <ApplicationIcon>..\..\build\darkroom.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- WPF와 WinForms를 같이 쓰면 이름이 겹친다. WinForms는 트레이 아이콘에만 쓰므로 전체 이름으로 참조한다. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Using Include="System.IO" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Darkroom.Core\Darkroom.Core.csproj" />
+    <ProjectReference Include="..\Darkroom.Providers\Darkroom.Providers.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Manager\web\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    배포(단일 exe): Release 빌드에서 widgets·themes·sdk·layouts와 Manager 화면을 zip 하나로 묶어 exe에 넣는다.
+    exe는 처음 실행할 때 %LOCALAPPDATA%\Darkroom\content 에 풀어서 쓴다(AppPaths.ExtractEmbeddedContent).
+    개발(Debug) 빌드는 저장소 원본을 바로 쓰므로 묶지 않는다.
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DarkroomEmbedContent Condition="'$(DarkroomEmbedContent)' == ''">true</DarkroomEmbedContent>
+  </PropertyGroup>
+  <Target Name="PackDarkroomContent" BeforeTargets="PrepareForBuild" Condition="'$(DarkroomEmbedContent)' == 'true'">
+    <PropertyGroup>
+      <_RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..'))\</_RepoRoot>
+      <_ContentStage>$(MSBuildProjectDirectory)\$(IntermediateOutputPath)content-stage\</_ContentStage>
+      <_ContentZip>$(MSBuildProjectDirectory)\$(IntermediateOutputPath)darkroom-content.zip</_ContentZip>
+    </PropertyGroup>
+    <ItemGroup>
+      <_DrWidgets Include="$(_RepoRoot)widgets\**\*" />
+      <_DrThemes Include="$(_RepoRoot)themes\**\*" />
+      <_DrSdk Include="$(_RepoRoot)sdk\**\*" />
+      <_DrLayouts Include="$(_RepoRoot)layouts\**\*" />
+      <_DrManager Include="$(MSBuildProjectDirectory)\Manager\web\**\*" />
+    </ItemGroup>
+    <RemoveDir Directories="$(_ContentStage)" />
+    <Copy SourceFiles="@(_DrWidgets)" DestinationFolder="$(_ContentStage)widgets\%(RecursiveDir)" />
+    <Copy SourceFiles="@(_DrThemes)" DestinationFolder="$(_ContentStage)themes\%(RecursiveDir)" />
+    <Copy SourceFiles="@(_DrSdk)" DestinationFolder="$(_ContentStage)sdk\%(RecursiveDir)" />
+    <Copy SourceFiles="@(_DrLayouts)" DestinationFolder="$(_ContentStage)layouts\%(RecursiveDir)" />
+    <Copy SourceFiles="@(_DrManager)" DestinationFolder="$(_ContentStage)manager\%(RecursiveDir)" />
+    <ZipDirectory SourceDirectory="$(_ContentStage)" DestinationFile="$(_ContentZip)" Overwrite="true" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(_ContentZip)" LogicalName="darkroom-content.zip" />
+    </ItemGroup>
+  </Target>
+</Project>

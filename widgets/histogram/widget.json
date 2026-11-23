@@ -1,0 +1,11 @@
+{
+  "id": "darkroom.histogram",
+  "name": "Histogram",
+  "version": "0.2.0",
+  "size": { "width": 360, "height": 184, "inset": 12 },
+  "windowMode": "desktop",
+  "subscribe": ["wallpaper.histogram", "wallpaper.current"],
+  "settings": {
+    "mode": { "type": "choice", "options": ["RGB", "휘도"], "default": "RGB", "label": "표시" }
+  }
+}

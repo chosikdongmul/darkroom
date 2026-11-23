@@ -1,0 +1,11 @@
+{
+  "id": "darkroom.golden-hour",
+  "name": "Golden Hour",
+  "version": "0.1.0",
+  "size": { "width": 360, "height": 196, "inset": 12 },
+  "windowMode": "desktop",
+  "subscribe": ["time.now", "sun.today", "sun.tomorrow", "sun.phase"],
+  "settings": {
+    "target": { "type": "choice", "options": ["골든아워", "블루아워", "둘 다"], "default": "둘 다", "label": "카운트다운 대상" }
+  }
+}

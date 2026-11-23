@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .phase { font: 600 20px/1 var(--dr-font-ui, sans-serif); }
+  .grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 4px 10px; font-size: 12px; white-space: nowrap; }
+  .grid .num { text-align: right; }
+</style>
+</head>
+<body>
+<main class="card" data-drag>
+  <div class="top"><span class="label" id="loc">Sun</span><span class="muted num" id="pos" style="font-size: 11px">–</span></div>
+  <div class="phase accent" id="phase">–</div>
+  <div class="grid">
+    <span class="muted">일출</span><span class="num" id="sunrise">–</span><span class="muted">일몰</span><span class="num" id="sunset">–</span>
+    <span class="muted">아침 골든</span><span class="num" id="mg">–</span><span class="muted">저녁 골든</span><span class="num" id="eg">–</span>
+    <span class="muted">아침 블루</span><span class="num" id="mb">–</span><span class="muted">저녁 블루</span><span class="num" id="eb">–</span>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const hm = (iso) => (iso ? iso.slice(11, 16) : "–");
+  const range = (a, b) => (a && b ? `${hm(a)}–${hm(b)}` : "–");
+  const PHASES = { day: "낮", goldenHour: "골든아워", blueHour: "블루아워", night: "밤" };
+  darkroom.subscribe("sun.today", (t) => {
+    $("loc").textContent = `해 · ${t.location.name}`;
+    $("sunrise").textContent = hm(t.sunrise);
+    $("sunset").textContent = hm(t.sunset);
+    $("mg").textContent = range(t.morning.goldenStart, t.morning.goldenEnd);
+    $("eg").textContent = range(t.evening.goldenStart, t.evening.blueStart);
+    $("mb").textContent = range(t.morning.blueStart, t.morning.goldenStart);
+    $("eb").textContent = range(t.evening.blueStart, t.evening.blueEnd);
+  });
+  darkroom.subscribe("sun.phase", (p) => { $("phase").textContent = PHASES[p] || p; });
+  darkroom.subscribe("sun.position", (p) => { $("pos").textContent = `고도 ${p.altitude}° · 방위 ${Math.round(p.azimuth)}°`; });
+</script>
+</body>
+</html>

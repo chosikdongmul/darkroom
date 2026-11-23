@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .row { display: grid; grid-template-columns: 40px 1fr 48px; align-items: center; gap: 10px; }
+  .row .v { text-align: right; }
+</style>
+</head>
+<body>
+<main class="card" data-drag>
+  <div class="label">시스템</div>
+  <div class="row"><span class="muted">CPU</span><div class="bar"><i id="cpuBar"></i></div><span class="v num" id="cpu">–</span></div>
+  <div class="row"><span class="muted">RAM</span><div class="bar"><i id="ramBar"></i></div><span class="v num" id="ram">–</span></div>
+  <div class="row"><span class="muted" id="driveName">C:</span><div class="bar"><i id="diskBar"></i></div><span class="v num" id="disk">–</span></div>
+  <div class="row"><span class="muted">NET</span><span class="num" id="net" style="grid-column: span 2">–</span></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const pct = (v) => `${Math.round(v)}%`;
+  const bytes = (b) => {
+    const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0;
+    while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+    return `${b.toFixed(b < 10 && i ? 1 : 0)}${u[i]}`;
+  };
+  let disks = [];
+  function showDisk() {
+    const want = (darkroom.settings.drive || "C:").toUpperCase();
+    const d = disks.find((x) => x.name.toUpperCase() === want) || disks[0];
+    if (!d) return;
+    $("driveName").textContent = d.name;
+    $("disk").textContent = pct(d.percent);
+    $("diskBar").style.width = pct(d.percent);
+    $("disk").title = `${bytes(d.freeBytes)} 남음 / ${bytes(d.totalBytes)}`;
+  }
+  darkroom.subscribe("system.cpu", (v) => { $("cpu").textContent = pct(v); $("cpuBar").style.width = pct(v); });
+  darkroom.subscribe("system.ram", (v) => { $("ram").textContent = pct(v.percent); $("ramBar").style.width = pct(v.percent); });
+  darkroom.subscribe("system.net", (v) => { $("net").textContent = `↓ ${bytes(v.downBps)}/s   ↑ ${bytes(v.upBps)}/s`; });
+  darkroom.subscribe("system.disks", (v) => { disks = v; showDisk(); });
+  darkroom.onSettingsChanged(showDisk);
+</script>
+</body>
+</html>

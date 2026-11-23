@@ -1,0 +1,9 @@
+bin/
+obj/
+*.user
+.vs/
+dist/
+
+# 로컬 메모·실험 도구
+PLAN.md
+spike/

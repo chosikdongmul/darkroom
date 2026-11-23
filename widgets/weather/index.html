@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .top .muted { font-size: 11px; }
+  .now { display: flex; align-items: center; gap: 14px; }
+  .temp { font: 600 38px/1 var(--dr-font-num, sans-serif); letter-spacing: -0.03em; }
+  .extra { font-size: 11px; }
+  .days { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 12px; }
+  .days div { display: flex; flex-direction: column; gap: 1px; }
+</style>
+</head>
+<body>
+<main class="card" data-drag>
+  <div class="top"><span class="label" id="loc">Weather</span><span class="muted" id="status">불러오는 중…</span></div>
+  <div class="now"><span class="temp" id="temp">–</span><div><div id="desc">–</div><div class="muted extra" id="extra"></div></div></div>
+  <div class="days" id="days"></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
+  const span = (text, cls) => { const s = document.createElement("span"); s.textContent = text; if (cls) s.className = cls; return s; };
+  darkroom.subscribe("weather.current", (c) => {
+    $("temp").textContent = `${Math.round(c.temperature)}°`;
+    $("desc").textContent = c.description;
+    $("extra").textContent = `체감 ${Math.round(c.apparentTemperature)}° · 습도 ${Math.round(c.humidity)}% · 바람 ${Math.round(c.windSpeed)}km/h`;
+  });
+  darkroom.subscribe("weather.daily", (list) => {
+    $("days").replaceChildren(...list.map((d) => {
+      const el = document.createElement("div");
+      el.append(span(DAYS[new Date(d.date + "T00:00").getDay()], "muted"), span(d.description), span(`${Math.round(d.min)}° / ${Math.round(d.max)}°`, "num"));
+      return el;
+    }));
+  });
+  darkroom.subscribe("weather.status", (s) => {
+    $("loc").textContent = `날씨 · ${s.location}`;
+    $("status").textContent = s.ok ? `${s.updatedAt.slice(11, 16)} 갱신` : "갱신 실패";
+    $("status").title = s.error || "";
+  });
+</script>
+</body>
+</html>

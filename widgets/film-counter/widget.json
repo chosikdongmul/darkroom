@@ -1,0 +1,11 @@
+{
+  "id": "darkroom.film-counter",
+  "name": "Film Counter",
+  "version": "0.1.0",
+  "size": { "width": 360, "height": 166, "inset": 12 },
+  "windowMode": "desktop",
+  "subscribe": ["photos.stats", "time.now"],
+  "settings": {
+    "roll": { "type": "choice", "options": ["24", "36"], "default": "36", "label": "롤당 컷 수" }
+  }
+}
