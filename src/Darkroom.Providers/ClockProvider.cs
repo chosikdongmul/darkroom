@@ -33,5 +33,6 @@ public static class BuiltInProviders
         new WeatherProvider(settings),
         new PhotosProvider(settings),
         new MediaProvider(),
+        new AudioProvider(),
     ];
 }

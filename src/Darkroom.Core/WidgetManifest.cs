@@ -60,7 +60,7 @@ public sealed partial class WidgetManifest
 
     public const string FileName = "widget.json";
     static readonly string[] KnownSettingTypes = ["bool", "number", "string", "choice"];
-    static readonly string[] KnownPermissions = ["network", "launch"];
+    static readonly string[] KnownPermissions = ["network", "launch", "notify"];
     /// <summary>호스트가 쓰는 가상 주소(assets.darkroom = 내장 글꼴, manager.darkroom, photos.darkroom)와 겹치는 id</summary>
     static readonly string[] ReservedIds = ["assets", "manager", "photos"];
 

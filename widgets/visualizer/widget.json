@@ -1,0 +1,14 @@
+{
+  "id": "darkroom.visualizer",
+  "name": "비주얼라이저",
+  "version": "0.1.0",
+  "entry": "index.html",
+  "size": { "width": 360, "height": 140, "inset": 12 },
+  "windowMode": "desktop",
+  "subscribe": ["audio.spectrum", "media.nowPlaying"],
+  "permissions": [],
+  "settings": {
+    "style": { "type": "choice", "options": ["막대", "거울", "물결"], "default": "막대", "label": "모양" },
+    "showTitle": { "type": "bool", "default": true, "label": "재생 중인 곡 표시" }
+  }
+}

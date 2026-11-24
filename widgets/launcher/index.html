@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>바로가기</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+  [hidden] { display: none !important; }
+  .card {
+    position: absolute; inset: 12px; box-sizing: border-box; padding: 14px 16px;
+    border-radius: var(--dr-radius, 22px); background: var(--dr-bg, rgba(28, 28, 30, .72));
+    box-shadow: var(--dr-shadow, 0 2px 8px rgba(0, 0, 0, .28));
+    color: var(--dr-fg, #f5f5f7); font: 12px/1.3 var(--dr-font-ui, "Segoe UI", sans-serif);
+    display: grid; grid-template-columns: repeat(4, 1fr); align-content: center; gap: 10px 6px;
+  }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; min-width: 0; }
+  .tile {
+    width: 52px; height: 52px; border-radius: calc(var(--dr-radius, 22px) * .55); display: grid; place-items: center;
+    background: var(--dr-inset, rgba(0, 0, 0, .28)); box-shadow: inset 0 0 0 1px var(--dr-faint, rgba(235, 235, 245, .12));
+    font-family: var(--dr-font-num, sans-serif); font-weight: var(--dr-num-weight, 600); font-size: 21px;
+    transition: box-shadow .12s, transform .12s;
+  }
+  .item:hover .tile { box-shadow: inset 0 0 0 1.5px var(--dr-accent, #ff9f45); }
+  .item:active .tile { transform: scale(.94); }
+  .item.err .tile { box-shadow: inset 0 0 0 1.5px #e5484d; }
+  .name { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dr-muted, rgba(235, 235, 245, .7)); }
+  .empty { grid-column: 1 / -1; text-align: center; color: var(--dr-muted, rgba(235, 235, 245, .56)); line-height: 1.5; }
+</style>
+</head>
+<body>
+<main class="card" id="grid" data-drag></main>
+<script>
+  const grid = document.getElementById("grid");
+
+  // "이름=경로; 이름=경로" → [{ name, target }] (최대 8개)
+  function parse(text) {
+    return String(text || "").split(";").map((s) => s.trim()).filter(Boolean).map((s) => {
+      const i = s.indexOf("=");
+      return i > 0 ? { name: s.slice(0, i).trim(), target: s.slice(i + 1).trim() } : { name: s, target: s };
+    }).filter((x) => x.target).slice(0, 8);
+  }
+
+  // 이름의 첫 글자(영문은 대문자). 이모지 등도 한 글자로 센다.
+  const mono = (name) => ([...name.trim()][0] || "?").toUpperCase();
+
+  function render() {
+    const items = parse(darkroom.settings.items);
+    if (!items.length) {
+      grid.innerHTML = `<div class="empty">Manager에서 이 위젯의 설정에 항목을 넣어 주세요.<br>예: 메모장=C:\\Windows\\notepad.exe</div>`;
+      return;
+    }
+    grid.replaceChildren(...items.map(({ name, target }) => {
+      const el = document.createElement("div");
+      el.className = "item";
+      el.title = target;
+      el.dataset.noDrag = ""; // 타일은 누르면 열리고, 빈 곳을 끌면 위젯이 움직인다
+      el.innerHTML = `<div class="tile"></div><div class="name"></div>`;
+      el.children[0].textContent = mono(name);
+      el.children[1].textContent = name;
+      el.addEventListener("click", () => darkroom.action({ type: "open", target }));
+      return el;
+    }));
+  }
+
+  darkroom.onSettingsChanged(render);
+  render();
+</script>
+</body>
+</html>

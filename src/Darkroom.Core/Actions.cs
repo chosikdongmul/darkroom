@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Darkroom.Core;
 
-/// <summary>위젯 → 호스트 요청. type: open | toggleWidget | loadLayout | setSetting | media</summary>
+/// <summary>위젯 → 호스트 요청. type: open | toggleWidget | loadLayout | setSetting | media | notify</summary>
 public sealed class ActionRequest
 {
     public string Type { get; set; } = "";
@@ -19,6 +19,9 @@ public sealed class ActionRequest
     public JsonElement Value { get; set; }
     /// <summary>media: playPause | next | previous</summary>
     public string? Command { get; set; }
+    /// <summary>notify: Windows 알림 제목·내용 ("notify" 권한 필요)</summary>
+    public string? Title { get; set; }
+    public string? Text { get; set; }
 }
 
 public static class ActionPolicy

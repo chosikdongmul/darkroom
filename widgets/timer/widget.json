@@ -1,0 +1,14 @@
+{
+  "id": "darkroom.timer",
+  "name": "타이머",
+  "version": "0.1.0",
+  "entry": "index.html",
+  "size": { "width": 360, "height": 168, "inset": 12 },
+  "windowMode": "desktop",
+  "subscribe": ["time.now"],
+  "permissions": ["notify"],
+  "settings": {
+    "presets": { "type": "string", "default": "5, 15, 25, 60", "label": "시간 버튼(분, 쉼표로 4개까지)" },
+    "notify": { "type": "bool", "default": true, "label": "끝나면 Windows 알림" }
+  }
+}

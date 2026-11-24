@@ -285,6 +285,21 @@ public class BusAndHostTests
         Assert.Equal(expected, WeatherProvider.SunsetScore(low, mid, high, vis, rain));
 
     [Fact]
+    public void Audio_spectrum_peaks_at_the_tone()
+    {
+        const int rate = 48000;
+        var samples = Enumerable.Range(0, 2048).Select(i => (float)(0.5 * Math.Sin(2 * Math.PI * 1000 * i / rate))).ToArray();
+        var bands = AudioProvider.Spectrum(samples, rate);
+        Assert.Equal(AudioProvider.Bands, bands.Length);
+        int peak = Array.IndexOf(bands, bands.Max());
+        // 1kHz는 40Hz~16kHz 로그 눈금에서 32칸 중 17번째 근처
+        Assert.InRange(peak, 15, 18);
+        Assert.True(bands[peak] > 0.8);
+        Assert.True(bands[2] < 0.3);
+        Assert.All(AudioProvider.Spectrum(new float[2048], rate), v => Assert.Equal(0, v));
+    }
+
+    [Fact]
     public void Sunset_forecast_uses_the_next_sunset_hour()
     {
         var json = """

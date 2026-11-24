@@ -634,9 +634,16 @@ internal sealed class AppController : IDisposable
                 error = ActionPolicy.CheckOpen(req.Target, source.Manifest);
                 if (error == null)
                 {
-                    try { Process.Start(new ProcessStartInfo(req.Target!.Trim()) { UseShellExecute = true }); }
+                    try { Process.Start(new ProcessStartInfo(Environment.ExpandEnvironmentVariables(req.Target!.Trim())) { UseShellExecute = true }); }
                     catch (Exception ex) { error = ex.Message; }
                 }
+                break;
+            case "notify":
+                if (!source.Manifest.HasPermission("notify")) { error = "notify 권한이 없는 위젯"; break; }
+                var title = (req.Title ?? source.Manifest.Name).Trim();
+                var text = (req.Text ?? "").Trim();
+                Log.Info($"[{source.Manifest.Id}] 알림: {title}");
+                Notify?.Invoke(title.Length > 60 ? title[..60] : title, text.Length > 200 ? text[..200] : text);
                 break;
             case "toggleWidget" when req.Id != null && Installed.ContainsKey(req.Id):
                 await SetWidgetEnabledAsync(req.Id, req.Enabled ?? !StateOf(req.Id).Enabled);

@@ -1,0 +1,18 @@
+{
+  "id": "darkroom.countdown",
+  "name": "D-day",
+  "version": "0.1.0",
+  "entry": "index.html",
+  "size": { "width": 360, "height": 168, "inset": 12 },
+  "windowMode": "desktop",
+  "subscribe": ["time.now"],
+  "permissions": [],
+  "settings": {
+    "events": {
+      "type": "string",
+      "default": "2026-12-25 크리스마스, 01-01 새해",
+      "label": "날짜 (쉼표로 구분, 'YYYY-MM-DD 이름' 또는 매년 'MM-DD 이름')"
+    },
+    "countToday": { "type": "bool", "default": false, "label": "당일을 1일째로 세기" }
+  }
+}

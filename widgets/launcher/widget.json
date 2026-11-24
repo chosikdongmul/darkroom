@@ -1,0 +1,17 @@
+{
+  "id": "darkroom.launcher",
+  "name": "바로가기",
+  "version": "0.1.0",
+  "entry": "index.html",
+  "size": { "width": 360, "height": 196, "inset": 12 },
+  "windowMode": "desktop",
+  "subscribe": [],
+  "permissions": ["launch"],
+  "settings": {
+    "items": {
+      "type": "string",
+      "default": "사진=shell:My Pictures; 다운로드=shell:Downloads; 메모장=%WINDIR%\\system32\\notepad.exe; 계산기=%WINDIR%\\system32\\calc.exe",
+      "label": "항목 ('이름=경로'를 ;로 구분, 최대 8개. 앱·폴더·웹 주소)"
+    }
+  }
+}

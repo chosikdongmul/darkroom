@@ -17,7 +17,7 @@ Windows 10/11 x64, Microsoft Edge WebView2 런타임(Windows 11은 기본 포함
 - 색 테마 8가지, 글꼴 조합 7가지(모두 내장)
 - 사진 폴더로 Windows 배경화면 바꾸기
 - 골든아워 알림, 해 위치에 따라 바뀌는 색 테마, 노을 예보(구름·비·시정으로 매긴 점수)
-- 위젯: 노출값 시계(지금 해 위치·날씨에 맞는 노출), 골든아워, 필름 카운터, 히스토그램(배경화면 기준), 필름 프레임, 시스템, 배터리, 해, 날씨, 사진, 지금 재생 중
+- 위젯: 노출값 시계(지금 해 위치·날씨에 맞는 노출), 골든아워, 필름 카운터, 히스토그램(배경화면 기준), 필름 프레임, D-day, 바로가기, 타이머, 비주얼라이저, 시스템, 배터리, 해, 날씨, 사진, 지금 재생 중
 
 트레이 아이콘을 누르면 Manager가 열린다. 설정과 로그는 `%APPDATA%\Darkroom`에 있다.
 
@@ -65,7 +65,7 @@ dotnet test tests/Darkroom.Core.Tests
 - `size`: 내장 위젯은 폭 360, `inset` 12(그림자용 투명 여백)로 맞춰 쌓았을 때 가장자리가 나란하다.
 - `windowMode`: `desktop` · `bottom` · `normal` · `topmost`
 - `subscribe`: 받을 데이터 키. `system.*`처럼 네임스페이스 단위도 된다.
-- `permissions`: `network`가 없으면 외부 요청(fetch, WebSocket, WebRTC)이 막힌다. `launch`가 없으면 `open` Action으로 프로그램을 열 수 없다.
+- `permissions`: `network`가 없으면 외부 요청(fetch, WebSocket, WebRTC)이 막힌다. `launch`가 없으면 `open` Action으로 프로그램을 열 수 없다. `notify`가 있으면 `notify` Action으로 Windows 알림을 띄울 수 있다.
 - 설정 type: `bool` · `number` · `string` · `choice`. Manager가 설정 화면을 만들어 준다.
 
 ```js
@@ -74,7 +74,7 @@ darkroom.settings;
 darkroom.onSettingsChanged((s) => {});
 darkroom.theme;                 // CSS에서는 var(--dr-bg) 등
 darkroom.onThemeChanged((t) => {});
-darkroom.action({ type: "open", target: "C:\\Photos" });   // open | toggleWidget | loadLayout | setSetting | media
+darkroom.action({ type: "open", target: "C:\\Photos" });   // open | toggleWidget | loadLayout | setSetting | media | notify
 darkroom.setSetting("big", true);
 ```
 
@@ -92,5 +92,6 @@ CSS 변수: `--dr-bg` `--dr-fg` `--dr-muted` `--dr-faint` `--dr-accent` `--dr-in
 | `wallpaper.current` `wallpaper.histogram` | 지금 배경화면의 이름·EXIF·히스토그램 |
 | `photos.current` `photos.histogram` `photos.stats` | 사진 폴더의 사진, 히스토그램, 촬영 통계 |
 | `media.nowPlaying` `media.artwork` | 재생 중인 미디어 |
+| `audio.spectrum` | 스피커로 나가는 소리의 주파수 막대 32개(0~1) |
 
 내장 글꼴은 모두 SIL Open Font License 1.1이다(`sdk/fonts/LICENSES.md`).

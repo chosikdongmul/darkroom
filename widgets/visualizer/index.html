@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>비주얼라이저</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+  [hidden] { display: none !important; }
+  .card {
+    position: absolute; inset: 12px; box-sizing: border-box; padding: 12px 16px 12px;
+    border-radius: var(--dr-radius, 22px); background: var(--dr-bg, rgba(28, 28, 30, .72));
+    box-shadow: var(--dr-shadow, 0 2px 8px rgba(0, 0, 0, .28));
+    color: var(--dr-fg, #f5f5f7); font: 12px/1.3 var(--dr-font-ui, "Segoe UI", sans-serif);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .top { display: flex; gap: 8px; white-space: nowrap; min-width: 0; color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+  .top b { color: var(--dr-fg, #f5f5f7); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+  .top span { overflow: hidden; text-overflow: ellipsis; }
+  canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+</style>
+</head>
+<body>
+<main class="card" data-drag>
+  <div class="top" id="top"><b id="title">조용함</b><span id="artist"></span></div>
+  <canvas id="c"></canvas>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const cv = $("c"), g = cv.getContext("2d");
+  const N = 32;
+  let target = new Array(N).fill(0), cur = new Array(N).fill(0), running = false;
+
+  const css = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
+  function size() {
+    const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return r;
+  }
+  let box = size();
+  new ResizeObserver(() => { box = size(); draw(); }).observe(cv);
+
+  function draw() {
+    const w = box.width, h = box.height, style = darkroom.settings.style || "막대";
+    g.clearRect(0, 0, w, h);
+    const grad = g.createLinearGradient(0, h, w, 0);
+    grad.addColorStop(0, css("--dr-accent", "#ff9f45"));
+    grad.addColorStop(1, css("--dr-gold", "#f4b54d"));
+    const faint = css("--dr-faint", "rgba(235,235,245,.14)");
+    const gap = 3, bw = (w - gap * (N - 1)) / N;
+
+    if (style === "물결") {
+      g.beginPath(); g.moveTo(0, h);
+      const pts = cur.map((v, i) => [i * (w / (N - 1)), h - Math.max(1.5, v * (h - 2))]);
+      g.lineTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < N; i++) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+        g.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+      }
+      g.lineTo(w, pts[N - 1][1]); g.lineTo(w, h); g.closePath();
+      g.globalAlpha = .35; g.fillStyle = grad; g.fill(); g.globalAlpha = 1;
+      g.beginPath();
+      g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < N; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; g.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2); }
+      g.strokeStyle = grad; g.lineWidth = 2; g.stroke();
+      return;
+    }
+    for (let i = 0; i < N; i++) {
+      const x = i * (bw + gap), v = cur[i];
+      if (style === "거울") {
+        const bh = Math.max(2, v * (h - 2));
+        g.fillStyle = v > 0.01 ? grad : faint;
+        roundRect(x, (h - bh) / 2, bw, bh);
+      } else {
+        const bh = Math.max(2, v * (h - 2));
+        g.fillStyle = v > 0.01 ? grad : faint;
+        roundRect(x, h - bh, bw, bh);
+      }
+    }
+  }
+  function roundRect(x, y, w, h) {
+    const r = Math.min(w / 2, 2.5);
+    g.beginPath(); g.roundRect(x, y, w, h, r); g.fill();
+  }
+
+  // 20fps로 오는 값을 화면 주사율로 부드럽게 따라간다. 다 내려가면 그리기를 멈춘다.
+  function loop() {
+    let moving = false;
+    for (let i = 0; i < N; i++) {
+      const d = target[i] - cur[i];
+      cur[i] += d * (d > 0 ? 0.5 : 0.18);
+      if (Math.abs(d) > 0.004) moving = true; else cur[i] = target[i];
+    }
+    draw();
+    if (moving) requestAnimationFrame(loop); else running = false;
+  }
+  function kick() { if (!running) { running = true; requestAnimationFrame(loop); } }
+
+  darkroom.subscribe("audio.spectrum", (v) => { if (Array.isArray(v) && v.length === N) { target = v; kick(); } });
+  darkroom.subscribe("media.nowPlaying", (m) => {
+    const on = m && m.active;
+    $("title").textContent = on ? (m.title || "(제목 없음)") : "조용함";
+    $("artist").textContent = on ? (m.artist || m.app || "") : "";
+  });
+  darkroom.onSettingsChanged((s) => { $("top").hidden = s.showTitle === false; draw(); });
+  darkroom.onThemeChanged(draw);
+  $("top").hidden = darkroom.settings.showTitle === false;
+  draw();
+</script>
+</body>
+</html>

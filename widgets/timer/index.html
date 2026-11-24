@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>타이머</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+  [hidden] { display: none !important; }
+  .card {
+    position: absolute; inset: 12px; box-sizing: border-box; padding: 14px 18px;
+    border-radius: var(--dr-radius, 22px); background: var(--dr-bg, rgba(28, 28, 30, .72));
+    box-shadow: var(--dr-shadow, 0 2px 8px rgba(0, 0, 0, .28));
+    color: var(--dr-fg, #f5f5f7); font: 13px/1.3 var(--dr-font-ui, "Segoe UI", sans-serif);
+    display: flex; align-items: center; gap: 18px;
+  }
+  .ring { position: relative; width: 104px; height: 104px; flex: none; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 5; }
+  .ring .track { stroke: var(--dr-faint, rgba(235, 235, 245, .14)); }
+  .ring .fill { stroke: var(--dr-accent, #ff9f45); stroke-linecap: round; transition: stroke-dashoffset .9s linear; }
+  .ring .num { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .ring b { font-family: var(--dr-font-num, sans-serif); font-weight: var(--dr-num-weight, 600); font-size: calc(26px * var(--dr-num-scale, 1));
+            letter-spacing: var(--dr-num-tracking, -0.02em); font-variant-numeric: tabular-nums lining-nums; line-height: 1; }
+  .ring small { display: block; font-size: 11px; margin-top: 4px; color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+  .done .ring .fill { animation: pulse 1.2s ease-in-out 4; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .side { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  button {
+    font: inherit; color: var(--dr-fg, #f5f5f7); background: var(--dr-inset, rgba(0, 0, 0, .25)); cursor: pointer;
+    border: 0; border-radius: 8px; padding: 7px 0; box-shadow: inset 0 0 0 1px var(--dr-faint, rgba(235, 235, 245, .12));
+  }
+  button:hover { box-shadow: inset 0 0 0 1.5px var(--dr-accent, #ff9f45); }
+  button.on { background: var(--dr-accent, #ff9f45); color: var(--dr-bg-solid, #1c1c1c); box-shadow: none; font-weight: 600; }
+  .controls { display: grid; grid-template-columns: 2fr 1fr; gap: 6px; }
+  .controls .primary { background: var(--dr-accent, #ff9f45); color: #1c1c1c; font-weight: 600; box-shadow: none; }
+</style>
+</head>
+<body>
+<main class="card" id="card" data-drag>
+  <div class="ring">
+    <svg viewBox="0 0 104 104"><circle class="track" cx="52" cy="52" r="46"/><circle class="fill" id="fill" cx="52" cy="52" r="46"/></svg>
+    <div class="num"><div><b id="left">25:00</b><small id="state">준비</small></div></div>
+  </div>
+  <div class="side">
+    <div class="presets" id="presets"></div>
+    <div class="controls">
+      <button class="primary" id="go">시작</button>
+      <button id="reset">초기화</button>
+    </div>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const C = 2 * Math.PI * 46;
+  $("fill").style.strokeDasharray = C;
+
+  // 상태는 위젯 저장소에 둔다(다시 불러와도·앱을 다시 켜도 이어서).
+  // { duration(ms), endsAt(ms, 진행 중), left(ms, 일시정지), done }
+  let st = { duration: 25 * 60e3, endsAt: 0, left: 25 * 60e3, done: false };
+  try { st = { ...st, ...JSON.parse(localStorage.getItem("timer") || "{}") }; } catch { /* 처음 */ }
+  const save = () => { try { localStorage.setItem("timer", JSON.stringify(st)); } catch { /* 무시 */ } };
+
+  const presets = () => String(darkroom.settings.presets || "5,15,25,60").split(",")
+    .map((s) => parseFloat(s)).filter((n) => n > 0 && n <= 600).slice(0, 4);
+  const mmss = (ms) => {
+    const s = Math.ceil(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  };
+  const remaining = () => (st.endsAt ? Math.max(0, st.endsAt - Date.now()) : st.left);
+
+  function finish() {
+    st.endsAt = 0; st.left = 0; st.done = true; save();
+    if (darkroom.settings.notify !== false)
+      darkroom.action({ type: "notify", title: "타이머 끝", text: `${mmss(st.duration)} 타이머가 끝났습니다.` });
+  }
+
+  function draw() {
+    if (st.endsAt && remaining() <= 0) finish();
+    const left = remaining();
+    $("left").textContent = mmss(left);
+    // 끝나면 고리를 가득 채워 깜빡인다
+    $("fill").style.strokeDashoffset = st.done ? 0 : C * (1 - (st.duration ? left / st.duration : 0));
+    $("state").textContent = st.done ? "끝" : st.endsAt ? "진행 중" : left < st.duration ? "일시정지" : "준비";
+    $("go").textContent = st.endsAt ? "일시정지" : left < st.duration && !st.done ? "계속" : "시작";
+    $("card").classList.toggle("done", st.done);
+    for (const b of $("presets").children) b.classList.toggle("on", +b.dataset.ms === st.duration);
+  }
+
+  function renderPresets() {
+    $("presets").replaceChildren(...presets().map((m) => {
+      const b = document.createElement("button");
+      b.textContent = m >= 60 && m % 60 === 0 ? `${m / 60}시간` : `${m}분`;
+      b.dataset.ms = String(m * 60e3);
+      b.addEventListener("click", () => { st = { duration: m * 60e3, endsAt: 0, left: m * 60e3, done: false }; save(); draw(); });
+      return b;
+    }));
+  }
+
+  $("go").addEventListener("click", () => {
+    if (st.endsAt) { st.left = remaining(); st.endsAt = 0; }                       // 일시정지
+    else { if (st.done || st.left <= 0) st.left = st.duration; st.done = false; st.endsAt = Date.now() + st.left; } // 시작·계속
+    save(); draw();
+  });
+  $("reset").addEventListener("click", () => { st.endsAt = 0; st.left = st.duration; st.done = false; save(); draw(); });
+
+  darkroom.subscribe("time.now", draw);
+  darkroom.onSettingsChanged(() => { renderPresets(); draw(); });
+  renderPresets();
+  draw();
+</script>
+</body>
+</html>
