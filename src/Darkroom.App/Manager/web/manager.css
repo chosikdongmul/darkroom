@@ -174,14 +174,5 @@ details.advanced.inner summary { margin-bottom: 6px; }
 .cal-list .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; background: var(--muted); }
 .cal-list .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hint.err, #calMsg.err { color: var(--danger); }
-
-/* 장소(출발지·도착지) */
-.place { display: flex; flex-direction: column; gap: 6px; }
-.place-now { display: flex; align-items: center; gap: 8px; }
-.place-now .grow { flex: 1; min-width: 0; }
-.place-now .name { font-weight: 600; }
-.place-now .sub, .place-results .sub { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.place-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.place-results li { display: flex; flex-direction: column; padding: 6px 8px; border-radius: 6px; cursor: pointer; background: var(--raised); }
-.place-results li:hover { box-shadow: inset 3px 0 0 var(--accent); }
-.place-results li.sub { cursor: default; background: none; }
+#calSection.flash { animation: flash 1.6s ease-out; border-radius: 6px; }
+@keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 35%, transparent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 35%, transparent); } 100% { background: transparent; box-shadow: none; } }

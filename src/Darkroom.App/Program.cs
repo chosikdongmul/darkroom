@@ -105,13 +105,14 @@ internal sealed class App : Application
             return;
         }
         _tray = new TrayIcon(_controller, OpenManager, () => _ = ExitAsync());
+        _controller.OpenManagerRequested += section => OpenManager(section);
 
         var listener = new Thread(() =>
         {
             while (_openManagerSignal.WaitOne())
             {
                 if (_exiting) return;
-                Dispatcher.BeginInvoke(OpenManager);
+                Dispatcher.BeginInvoke(() => OpenManager());
             }
         }) { IsBackground = true, Name = "OpenManagerSignal" };
         listener.Start();
@@ -129,7 +130,9 @@ internal sealed class App : Application
         if (_args.Contains("--manager") || (_controller.FirstRun && !_args.Contains("--autostart"))) OpenManager();
     }
 
-    void OpenManager()
+    void OpenManager() => OpenManager(null);
+
+    void OpenManager(string? section)
     {
         if (_controller == null || _exiting) return;
         if (_manager == null)
@@ -140,6 +143,7 @@ internal sealed class App : Application
         }
         if (_manager.WindowState == WindowState.Minimized) _manager.WindowState = WindowState.Normal;
         _manager.Activate();
+        if (section != null) _manager.ShowSection(section);
     }
 
     async Task ExitAsync()

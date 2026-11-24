@@ -83,55 +83,14 @@ function settingControl(w, key, spec) {
 }
 
 // ---------- 목록 편집기(날짜·바로가기·숫자) ----------
-const LIST_TYPES = ["dates", "links", "numbers", "place"];
+const LIST_TYPES = ["dates", "links", "numbers"];
 let pendingFocus = null; // 방금 추가한 줄의 입력칸에 커서를 둔다 { id, key, index, field }
 
 const todayPlus = (days) => { const d = new Date(Date.now() + days * 864e5); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const iconUrl = (target) => "https://assets.darkroom/icon?t=" + encodeURIComponent(target);
 const isWeb = (t) => /^https?:/i.test(t || "");
 
-// ---------- 장소 고르기(출발지·도착지) ----------
-const placeSearches = new Map(); // "id|key" → { query, results }
-function placeEditor(w, key, spec) {
-  const value = w.settings[key];
-  const id = `${w.id}|${key}`;
-  const save = (v) => send({ type: "setSetting", id: w.id, key, value: v });
-  const search = placeSearches.get(id);
-  const input = el("input", { type: "text", placeholder: "주소나 역·건물 이름 (예: 강남역)", maxlength: 100, value: search ? search.query : "" });
-  const form = el("form", { class: "inline", onsubmit: (e) => {
-    e.preventDefault();
-    const q = input.value.trim();
-    if (!q) return;
-    input.blur();
-    placeSearches.set(id, { query: q, results: null });
-    send({ type: "searchPlace", id: w.id, key, query: q });
-    render();
-  } }, input, el("button", {}, "찾기"));
-  let results = null;
-  if (search) {
-    results = el("ul", { class: "place-results" }, search.results == null
-      ? el("li", { class: "sub" }, "찾는 중…")
-      : search.results.length === 0
-        ? el("li", { class: "sub" }, "찾지 못했습니다. 동·도로 이름이나 근처 역으로 해 보세요(인터넷 필요).")
-        : search.results.map((r) => el("li", { onclick: () => {
-            placeSearches.delete(id);
-            save({ name: value && value.name ? value.name : r.name, address: r.address || r.name, lat: r.lat, lon: r.lon });
-            toast(`'${r.name}'(으)로 정했습니다`);
-          } }, el("b", {}, r.name), el("span", { class: "sub" }, r.address))));
-  }
-  const now = value
-    ? el("div", { class: "list-row place-now" },
-        el("span", { class: "link-icon" }, "📍"),
-        el("input", { type: "text", value: value.name, maxlength: 40, title: "버튼에 보일 이름 (예: 집, 회사)",
-          onchange: (e) => { const n = e.target.value.trim(); if (n) save({ ...value, name: n }); } }),
-        el("span", { class: "path", title: value.address || "" }, value.address || ""),
-        el("button", { type: "button", class: "icon-btn", title: "지우기", onclick: () => save(null) }, "✕"))
-    : el("p", { class: "sub" }, "아직 정하지 않았습니다.");
-  return el("div", { class: "place" }, now, form, results);
-}
-
 function listEditor(w, key, spec) {
-  if (spec.type === "place") return placeEditor(w, key, spec);
   const items = (Array.isArray(w.settings[key]) ? w.settings[key] : []).map((x) => (typeof x === "object" ? { ...x } : x));
   const max = spec.maxItems || 8;
   const save = (next) => send({ type: "setSetting", id: w.id, key, value: next });
@@ -271,7 +230,7 @@ function renderDetail() {
 }
 
 const PERMS = (list) => list.length
-  ? list.map((p) => ({ network: "인터넷 사용", launch: "앱·파일 열기", notify: "Windows 알림", calendar: "캘린더 일정 읽기", web: "웹 화면 띄우기" }[p] || p)).join(", ")
+  ? list.map((p) => ({ network: "인터넷 사용", launch: "앱·파일 열기", notify: "Windows 알림", calendar: "캘린더 일정 읽기" }[p] || p)).join(", ")
   : "없음 (인터넷 차단)";
 
 // ---------- 오른쪽: 레이아웃 ----------
@@ -530,10 +489,11 @@ if (wv) {
       toast(`'${m.item.name}' 추가함`);
     }
     else if (m.type === "cities") showCities(m.results);
-    else if (m.type === "places") {
-      const id = `${m.id}|${m.key}`;
-      const s = placeSearches.get(id);
-      if (s) { s.results = m.results || []; render(); }
+    else if (m.type === "section" && m.section === "calendar") {
+      const box = $("#calSection");
+      box.scrollIntoView({ behavior: "smooth", block: "start" });
+      box.classList.remove("flash"); void box.offsetWidth; box.classList.add("flash");
+      if (!state || !state.calendar.connected) setTimeout(() => $("#calUser").focus(), 400);
     }
     else if (m.type === "calendarResult") {
       if (m.ok) { $("#calPass").value = ""; calMsg(""); toast("캘린더를 연결했습니다"); }

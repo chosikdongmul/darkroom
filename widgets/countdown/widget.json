@@ -2,7 +2,7 @@
   "id": "darkroom.countdown",
   "name": "디데이",
   "description": "기다리는 날까지 남은 날 수 (D-day). 네이버 캘린더 일정도 함께",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "entry": "index.html",
   "size": {
     "width": 360,

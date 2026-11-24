@@ -8,7 +8,6 @@
  *   darkroom.onThemeChanged((t) => { ... })
  *   darkroom.action({ type: "open", target: "C:\\Photos" })
  *   darkroom.setSetting("format24h", false)
- *   darkroom.web.show(element, url)                   // "web" 권한: element 자리에 웹 화면을 띄움(web.allow 사이트만)
  *
  * 드래그: data-drag 속성이 있는 요소를 끌거나, 아무 곳이나 Ctrl+드래그.
  */
@@ -119,20 +118,6 @@
   window.addEventListener("error", (e) => post({ type: "log", level: "error", message: `${e.message} (${e.filename}:${e.lineno})` }));
   window.addEventListener("unhandledrejection", (e) => reportError(e.reason));
 
-  // ---- 웹 화면("web" 권한): 요소의 자리에 호스트가 웹 화면을 겹쳐 띄운다 ----
-  let webEl = null;
-  const rectOf = (elem) => { const r = elem.getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; };
-  const webApi = init.web ? Object.freeze({
-    show(elem, url) {
-      if (!(elem instanceof Element)) throw new TypeError("web.show(element, url)");
-      webEl = elem;
-      post({ type: "web", op: "show", url: url == null ? null : String(url), rect: rectOf(elem) });
-    },
-    navigate(url) { post({ type: "web", op: "navigate", url: String(url), rect: webEl ? rectOf(webEl) : undefined }); },
-    hide() { webEl = null; post({ type: "web", op: "hide" }); },
-  }) : undefined;
-  if (init.web) window.addEventListener("resize", () => { if (webEl) post({ type: "web", op: "show", url: null, rect: rectOf(webEl) }); });
-
   const api = Object.freeze({
     version: "0.1.0",
     widget: Object.freeze({ ...(init.widget || {}) }),
@@ -144,7 +129,6 @@
     onThemeChanged: onChange(themeCallbacks),
     action(action) { post({ type: "action", action }); },
     setSetting(key, value) { post({ type: "action", action: { type: "setSetting", key, value } }); },
-    web: webApi,
     log(...args) { post({ type: "log", level: "info", message: args.map(String).join(" ") }); },
   });
   Object.defineProperty(window, "darkroom", { value: api, writable: false, configurable: false });

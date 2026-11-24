@@ -15,6 +15,7 @@ internal sealed class ManagerWindow : Window
     readonly AppController _app;
     readonly WebView2 _web = new();
     bool _ready;
+    string? _pendingSection;
 
     public ManagerWindow(AppController app)
     {
@@ -47,8 +48,20 @@ internal sealed class ManagerWindow : Window
         core.NavigationStarting += (_, e) => { if (!e.Uri.StartsWith($"https://{Host}/", StringComparison.OrdinalIgnoreCase)) e.Cancel = true; };
         core.NewWindowRequested += (_, e) => e.Handled = true;
         core.WebMessageReceived += async (_, e) => await OnMessageAsync(e.WebMessageAsJson);
-        core.NavigationCompleted += (_, _) => { _ready = true; PushState(); };
+        core.NavigationCompleted += (_, _) =>
+        {
+            _ready = true;
+            PushState();
+            if (_pendingSection != null) { Post(new { type = "section", section = _pendingSection }); _pendingSection = null; }
+        };
         core.Navigate($"https://{Host}/index.html");
+    }
+
+    /// <summary>오른쪽의 해당 칸(예: 캘린더)으로 스크롤하고 눈에 띄게 한다.</summary>
+    public void ShowSection(string section)
+    {
+        if (_ready) Post(new { type = "section", section });
+        else _pendingSection = section;
     }
 
     void PushState()
@@ -156,7 +169,6 @@ internal sealed class ManagerWindow : Window
                     error = al == null ? "알림 설정 형식 오류" : _app.SetAlerts(al);
                     break;
                 case "installUpdate": await _app.InstallUpdateAsync(); break;
-                case "searchPlace": Post(new { type = "places", id = S("id"), key = S("key"), results = await AppController.SearchPlacesAsync(S("query")) }); break;
                 case "calendarConnect":
                     var calErr = await _app.ConnectCalendarAsync(S("server"), S("username"), S("password"));
                     Post(new { type = "calendarResult", ok = calErr == null, message = calErr });

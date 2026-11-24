@@ -18,7 +18,6 @@ internal sealed class WidgetHost : IDisposable
     string? _scriptId;
     bool _closed;
     string? _photosMappedTo;   // photos.darkroom에 매핑한 폴더 (photos를 구독하는 위젯만)
-    EmbeddedWeb? _web;         // "web" 권한: 위젯 안에 띄운 웹 화면(네이버 지도 등)
 
     public WidgetManifest Manifest { get; private set; }
     public WidgetWindow? Window => _win;
@@ -41,7 +40,7 @@ internal sealed class WidgetHost : IDisposable
         _win.EnsureOnScreen(); // 화면 밖이면 안으로 당기되, 저장된 위치는 그대로 둔다(원래 화면으로 돌아오면 복귀)
         _win.MoveFinished += () => { SavePosition(); };
         _win.Resized += UpdateBounds;
-        _win.ScaleChanged += () => { if (_ctl != null) _ctl.RasterizationScale = _win.Scale; UpdateBounds(); _web?.UpdateBounds(); };
+        _win.ScaleChanged += () => { if (_ctl != null) _ctl.RasterizationScale = _win.Scale; UpdateBounds(); };
         _win.LostUnexpectedly += () => _app.OnWidgetLost(this);
         _win.SetVisible(!_app.State.AllHidden);
 
@@ -228,7 +227,6 @@ internal sealed class WidgetHost : IDisposable
             window = WindowPayload(),
             dev = _app.DevMode,
             network = Manifest.HasPermission("network"),
-            web = Manifest.HasPermission("web"),
         };
         // JSON을 <script> 밖 JS 리터럴로 넣는다. U+2028/2029는 JSON 직렬화기가 이스케이프한다.
         var json = JsonSerializer.Serialize(init, DrJson.Compact);
@@ -242,7 +240,6 @@ internal sealed class WidgetHost : IDisposable
         try
         {
             await RefreshInitScriptAsync();
-            _web?.Hide(); // 새 문서가 다시 띄운다
             await _ctl.CoreWebView2.CallDevToolsProtocolMethodAsync("Network.clearBrowserCache", "{}");
             Navigate();
             Log.Info($"[{Manifest.Id}] 다시 불러옴");
@@ -285,10 +282,6 @@ internal sealed class WidgetHost : IDisposable
                 ActionRequest? req = null;
                 try { req = a.Deserialize<ActionRequest>(DrJson.Options); } catch (JsonException) { }
                 if (req != null) _ = _app.ExecuteActionAsync(this, req);
-                break;
-            case "web" when Manifest.HasPermission("web") && _win != null:
-                _web ??= new EmbeddedWeb(_app, Manifest, _win);
-                _ = _web.HandleAsync(m);
                 break;
             case "log" when m.TryGetProperty("message", out var msg):
                 var text = msg.ToString();
@@ -361,7 +354,6 @@ internal sealed class WidgetHost : IDisposable
     {
         _win?.SetVisible(!hidden);
         if (_ctl != null) _ctl.IsVisible = !hidden; // 숨기면 렌더링도 멈춘다
-        _web?.SetHidden(hidden);
     }
 
     // ---------- 창 ----------
@@ -388,8 +380,6 @@ internal sealed class WidgetHost : IDisposable
         _closed = true;
         foreach (var s in _subs.Values) s.Dispose();
         _subs.Clear();
-        _web?.Dispose();
-        _web = null;
         try { _ctl?.Close(); } catch (Exception ex) when (ex is COMException or InvalidOperationException) { }
         _ctl = null;
         _win?.Dispose();

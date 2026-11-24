@@ -27,8 +27,5 @@ https://nodatime.org — dependency of Ical.Net (Apache License 2.0, https://www
 
 Copyright The Noda Time Authors.
 
-## Map data
-Place search uses OpenStreetMap Nominatim. Data © OpenStreetMap contributors, ODbL (https://www.openstreetmap.org/copyright).
-
 ## Fonts
 See `fonts/LICENSES.md` (SIL Open Font License 1.1).

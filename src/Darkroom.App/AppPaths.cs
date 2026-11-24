@@ -84,8 +84,30 @@ internal sealed class AppPaths
                 entry.ExtractToFile(dest, overwrite: true);
             }
         }
+        RemoveDroppedWidgets(target, bytes);
         File.WriteAllText(stampFile, stamp);
         Log.Info($"내장 콘텐츠를 풀었습니다: {target} ({stamp})");
         return target;
+    }
+
+    /// <summary>이전 버전에 들어 있다가 빠진 내장 위젯 폴더를 지운다. 사용자가 직접 넣은 위젯 폴더는 건드리지 않는다.</summary>
+    static void RemoveDroppedWidgets(string target, byte[] zipBytes)
+    {
+        var listFile = Path.Combine(target, ".bundled-widgets");
+        HashSet<string> current;
+        using (var zip = new ZipArchive(new MemoryStream(zipBytes), ZipArchiveMode.Read))
+            current = zip.Entries.Select(e => e.FullName.Replace('\\', '/').Split('/'))
+                .Where(p => p.Length > 2 && p[0] == "widgets").Select(p => p[1]).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var previous = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "naver-map" }; // 0.9.0에만 있던 위젯(목록 파일이 생기기 전)
+        try { if (File.Exists(listFile)) previous.UnionWith(File.ReadAllLines(listFile).Where(l => l.Length > 0)); }
+        catch (IOException) { }
+        foreach (var name in previous.Where(n => !current.Contains(n) && !n.Contains('.') && !n.Contains('\\') && !n.Contains('/')))
+        {
+            var dir = Path.Combine(target, "widgets", name);
+            try { if (Directory.Exists(dir)) { Directory.Delete(dir, recursive: true); Log.Info($"빠진 내장 위젯 폴더 삭제: {name}"); } }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Log.Warn($"위젯 폴더 삭제 실패({name}): {ex.Message}"); }
+        }
+        try { File.WriteAllLines(listFile, current.Order(StringComparer.Ordinal)); }
+        catch (IOException) { }
     }
 }

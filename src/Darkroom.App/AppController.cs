@@ -448,6 +448,8 @@ internal sealed partial class AppController : IDisposable
     readonly HashSet<string> _alerted = new();
     /// <summary>(제목, 내용) 알림 → 트레이가 Windows 알림으로 띄운다.</summary>
     public event Action<string, string>? Notify;
+    /// <summary>위젯이 Manager를 열어 달라고 함(보여 줄 칸, 없으면 null).</summary>
+    public event Action<string?>? OpenManagerRequested;
 
     public string EffectiveThemeKey =>
         State.ThemeAuto && AutoThemes.TryGetValue(_phase, out var k) && Themes.ContainsKey(k) ? k : State.Theme;
@@ -697,6 +699,10 @@ internal sealed partial class AppController : IDisposable
                 var text = (req.Text ?? "").Trim();
                 Log.Info($"[{source.Manifest.Id}] 알림: {title}");
                 Notify?.Invoke(title.Length > 60 ? title[..60] : title, text.Length > 200 ? text[..200] : text);
+                break;
+            case "openManager":
+                // 위젯에서 설정이 필요한 곳으로 바로 간다(예: 일정 위젯의 "캘린더 연결")
+                OpenManagerRequested?.Invoke(req.Section is "calendar" ? req.Section : null);
                 break;
             case "toggleWidget" when req.Id != null && Installed.ContainsKey(req.Id):
                 await SetWidgetEnabledAsync(req.Id, req.Enabled ?? !StateOf(req.Id).Enabled);

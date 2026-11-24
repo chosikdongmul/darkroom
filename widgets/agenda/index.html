@@ -28,6 +28,10 @@
   .ev.past { opacity: .45; }
   .more { font-size: 11px; }
   .empty { font-size: 13px; line-height: 1.5; margin: auto 0; }
+  .connect { font: inherit; font-size: 12px; font-weight: 600; color: #1c1c1c; background: var(--dr-accent, #ff9f45);
+             border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; margin-top: 8px; }
+  .connect:hover { filter: brightness(1.08); }
+
 </style>
 </head>
 <body>
@@ -35,6 +39,8 @@
   <div class="head"><div class="today" id="today"></div><div class="note muted" id="note"></div></div>
   <div class="list" id="list"></div>
   <div class="empty muted" id="empty" hidden></div>
+  <div id="connectBox" hidden><div class="empty muted" style="margin:0">네이버 캘린더를 연결하면 일정이 여기 나옵니다.</div>
+    <button class="connect" id="connect" type="button">캘린더 연결하기</button></div>
 </main>
 <script>
   const $ = (id) => document.getElementById(id);
@@ -64,11 +70,12 @@
 
     $("today").textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 ${DOW[now.getDay()]}요일`;
     const connected = cal && cal.connected;
+    $("connectBox").hidden = connected || cal == null;
     if (!connected) {
       $("note").textContent = "";
       $("list").replaceChildren();
-      $("empty").hidden = false;
-      $("empty").innerHTML = cal == null ? "일정을 불러오는 중…" : "트레이 아이콘 → Manager → 오른쪽 <b>캘린더</b>에서<br>네이버 캘린더를 연결하세요.";
+      $("empty").hidden = cal != null;
+      $("empty").textContent = "일정을 불러오는 중…";
       return;
     }
 
@@ -108,6 +115,7 @@
 
   function el(tag, cls, text) { const e = document.createElement(tag); e.className = cls; if (text != null) e.textContent = text; return e; }
 
+  $("connect").onclick = () => darkroom.action({ type: "openManager", section: "calendar" });
   darkroom.subscribe("time.now", (v) => render(v.epochMs));
   darkroom.subscribe("calendar.events", (v) => { cal = v; lastKey = ""; render(Date.now()); });
   darkroom.onSettingsChanged(() => { lastKey = ""; render(Date.now()); });

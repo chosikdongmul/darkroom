@@ -6,7 +6,7 @@ using Darkroom.Providers;
 
 namespace Darkroom.App;
 
-/// <summary>캘린더 연결(CalDAV)과 장소 찾기.</summary>
+/// <summary>캘린더 연결(CalDAV).</summary>
 internal sealed partial class AppController
 {
     static readonly HttpClient CalendarHttp = CalendarProvider.CreateClient();
@@ -148,66 +148,5 @@ internal sealed partial class AppController
             calendars = c.Calendars.Select(x => new { id = x.Id, name = x.Name, color = x.Color, shown = !c.Hidden.Contains(x.Id) }).ToList(),
             used = Installed.Values.Any(m => StateOf(m.Id).Enabled && m.Subscribe.Any(k => k.StartsWith("calendar.", StringComparison.Ordinal))),
         };
-    }
-
-    // =========================================================== 장소 찾기(길찾기 출발지·도착지)
-    static readonly HttpClient PlaceHttp = CreatePlaceClient();
-    static DateTime _lastPlaceSearch = DateTime.MinValue;
-
-    static HttpClient CreatePlaceClient()
-    {
-        var c = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        // OpenStreetMap Nominatim 이용 정책: 앱을 알아볼 수 있는 User-Agent, 초당 1회 이하, 자동 완성 금지(찾기 버튼으로만 검색)
-        c.DefaultRequestHeaders.UserAgent.ParseAdd("Darkroom/1.0 (Windows desktop widgets)");
-        return c;
-    }
-
-    /// <summary>주소·역·건물 이름 → 후보(OpenStreetMap Nominatim, 키 불필요). 실패하면 빈 목록.</summary>
-    public static async Task<List<object>> SearchPlacesAsync(string query)
-    {
-        query = query.Trim();
-        if (query.Length < 1 || query.Length > 100) return new List<object>();
-        var wait = _lastPlaceSearch.AddSeconds(1.1) - DateTime.UtcNow;
-        if (wait > TimeSpan.Zero) await Task.Delay(wait);
-        _lastPlaceSearch = DateTime.UtcNow;
-        try
-        {
-            var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&addressdetails=0&accept-language=ko&countrycodes=kr&q=" + Uri.EscapeDataString(query);
-            using var doc = JsonDocument.Parse(await PlaceHttp.GetStringAsync(url));
-            var list = new List<object>();
-            var seen = new HashSet<string>();
-            foreach (var r in doc.RootElement.EnumerateArray())
-            {
-                string S(string n) => r.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
-                if (!double.TryParse(S("lat"), NumberStyles.Float, CultureInfo.InvariantCulture, out var lat)
-                    || !double.TryParse(S("lon"), NumberStyles.Float, CultureInfo.InvariantCulture, out var lon)) continue;
-                var parts = S("display_name").Split(", ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-                var name = S("name") is { Length: > 0 } n ? n : parts.FirstOrDefault() ?? query;
-                var address = KoreanAddress(parts, name);
-                if (!seen.Add(name + "|" + address)) continue; // 같은 이름·주소(역 출입구 여러 개 등)는 하나만
-                list.Add(new
-                {
-                    name = name.Length > 40 ? name[..40] : name,
-                    address,
-                    lat = Math.Round(lat, 6),
-                    lon = Math.Round(lon, 6),
-                });
-            }
-            return list;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
-        {
-            Log.Warn($"장소 찾기 실패: {ex.Message}");
-            return new List<object>();
-        }
-    }
-
-    /// <summary>"강남역, 강남대로, 역삼동, 강남구, 서울특별시, 06232, 대한민국" → "서울특별시 강남구 역삼1동 강남대로"</summary>
-    public static string KoreanAddress(List<string> parts, string name)
-    {
-        // 이름·나라·우편번호(5자리)는 빼고, 큰 단위부터: "… 테헤란로 152"처럼 번지는 도로 이름 뒤에 남는다
-        var rest = parts.Where(p => p != name && p != "대한민국" && !(p.Length == 5 && p.All(char.IsAsciiDigit))).Reverse().ToList();
-        var s = string.Join(" ", rest);
-        return s.Length > 160 ? s[..160] : s;
     }
 }

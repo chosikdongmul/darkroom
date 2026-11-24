@@ -2,7 +2,7 @@
   "id": "darkroom.agenda",
   "name": "일정",
   "description": "오늘과 다가오는 일정 (네이버 캘린더)",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "entry": "index.html",
   "size": { "width": 360, "height": 214, "inset": 12 },
   "windowMode": "desktop",

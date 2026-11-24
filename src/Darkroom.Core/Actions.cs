@@ -22,6 +22,8 @@ public sealed class ActionRequest
     /// <summary>notify: Windows 알림 제목·내용 ("notify" 권한 필요)</summary>
     public string? Title { get; set; }
     public string? Text { get; set; }
+    /// <summary>openManager: 열 때 보여 줄 칸 (calendar)</summary>
+    public string? Section { get; set; }
 }
 
 public static class ActionPolicy

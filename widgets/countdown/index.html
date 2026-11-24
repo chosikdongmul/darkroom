@@ -30,6 +30,10 @@
   .row .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row .n i, .name i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; background: var(--dr-muted, rgba(235, 235, 245, .56)); }
   .empty { font-size: 13px; line-height: 1.5; }
+  .connect { font: inherit; font-size: 12px; font-weight: 600; color: #1c1c1c; background: var(--dr-accent, #ff9f45);
+             border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; margin-top: 8px; }
+  .connect:hover { filter: brightness(1.08); }
+
 </style>
 </head>
 <body>
@@ -40,7 +44,8 @@
     <div class="what"><div class="name" id="name"></div><div class="date muted" id="date"></div></div>
   </div>
   <div class="rest" id="rest"></div>
-  <div class="empty muted" id="empty" hidden>트레이 아이콘 → Manager → 디데이에서<br>"+ 날짜 추가"를 누르거나, 캘린더를 연결하세요.</div>
+  <div class="empty muted" id="empty" hidden>트레이 아이콘 → Manager → 디데이에서<br>"+ 날짜 추가"로 날짜를 넣어 주세요.
+    <div id="connectBox"><button class="connect" id="connect" type="button">네이버 캘린더 연결하기</button></div></div>
 </main>
 <script>
   const $ = (id) => document.getElementById(id);
@@ -100,6 +105,7 @@
     const days = (e) => { const d = Math.round((e.date - today) / DAY); return s.countToday ? (d > 0 ? d + 1 : d < 0 ? d - 1 : d) : d; };
     const fmt = (d) => `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
     $("empty").hidden = events.length > 0;
+    $("connectBox").hidden = !!(cal && cal.connected) || s.calendar === "off";
     $("main").hidden = $("rest").hidden = $("label").hidden = events.length === 0;
     if (!events.length) return;
 
@@ -127,6 +133,7 @@
   // 캘린더 일정 표시(색 점)
   function dot(color) { const i = document.createElement("i"); if (color) i.style.background = color; return i; }
 
+  $("connect").onclick = () => darkroom.action({ type: "openManager", section: "calendar" });
   darkroom.subscribe("time.now", (v) => render(v.epochMs));
   darkroom.subscribe("calendar.events", (v) => { cal = v; lastKey = ""; render(Date.now()); });
   darkroom.onSettingsChanged(() => { lastKey = ""; render(Date.now()); });
