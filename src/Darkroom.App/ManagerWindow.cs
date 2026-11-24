@@ -120,6 +120,7 @@ internal sealed class ManagerWindow : Window
                 case "setAutoStart": _app.SetAutoStart(B("value")); break;
                 case "openLogs": _app.OpenLogs(); break;
                 case "checkUpdate": await _app.CheckUpdatesAsync(); break;
+                case "setCheckUpdates": _app.SetCheckUpdates(B("value")); break;
                 case "installUpdate": await _app.InstallUpdateAsync(); break;
             }
         }

@@ -1,6 +1,6 @@
 {
   "id": "darkroom.sample.photo",
-  "name": "Photo Frame (샘플)",
+  "name": "사진 액자",
   "version": "0.1.0",
   "size": { "width": 360, "height": 304, "inset": 12 },
   "windowMode": "desktop",

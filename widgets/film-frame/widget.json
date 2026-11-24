@@ -1,6 +1,6 @@
 {
   "id": "darkroom.film-frame",
-  "name": "Film Frame",
+  "name": "필름 프레임",
   "version": "0.1.0",
   "size": { "width": 360, "height": 260, "inset": 12 },
   "windowMode": "desktop",

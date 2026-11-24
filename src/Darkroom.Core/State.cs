@@ -86,6 +86,8 @@ public sealed class AppState
     public WallpaperSettings Wallpaper { get; set; } = new();
     public bool AllLocked { get; set; }
     public bool AllHidden { get; set; }
+    /// <summary>새 버전을 자동으로 확인할지(시작 30초 뒤, 그 뒤 12시간마다). 꺼도 Manager에서 직접 확인할 수 있다.</summary>
+    public bool CheckUpdates { get; set; } = true;
     public Dictionary<string, WidgetState> Widgets { get; set; } = new();
 
     public static AppState? TryLoad(string path)

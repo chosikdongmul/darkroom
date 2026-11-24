@@ -1,6 +1,6 @@
 {
   "id": "darkroom.sample.sun",
-  "name": "Sun (샘플)",
+  "name": "해",
   "version": "0.1.0",
   "size": { "width": 360, "height": 186, "inset": 12 },
   "windowMode": "desktop",

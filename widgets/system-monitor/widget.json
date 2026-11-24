@@ -1,6 +1,6 @@
 {
   "id": "darkroom.sample.system",
-  "name": "System Monitor (샘플)",
+  "name": "시스템",
   "version": "0.1.0",
   "size": { "width": 360, "height": 196, "inset": 12 },
   "windowMode": "desktop",

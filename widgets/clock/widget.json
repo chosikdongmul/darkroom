@@ -1,6 +1,6 @@
 {
   "id": "darkroom.clock",
-  "name": "Exposure Clock",
+  "name": "노출값 시계",
   "version": "0.5.0",
   "entry": "index.html",
   "size": { "width": 360, "height": 168, "resizable": false, "inset": 12 },

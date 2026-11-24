@@ -1,6 +1,6 @@
 {
   "id": "darkroom.sample.battery",
-  "name": "Battery (샘플)",
+  "name": "배터리",
   "version": "0.1.0",
   "size": { "width": 360, "height": 124, "inset": 12 },
   "windowMode": "desktop",

@@ -1,5 +1,5 @@
 {
-    "name":  "샘플 위젯",
+    "name":  "정보 위젯",
     "theme":  "darkroom-gray",
     "widgets":  {
                     "darkroom.clock":  {

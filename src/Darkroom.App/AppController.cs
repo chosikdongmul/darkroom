@@ -52,12 +52,24 @@ internal sealed class AppController : IDisposable
     /// <summary>시작 30초 뒤, 그 뒤 12시간마다 새 버전을 확인한다. 개발 빌드는 DARKROOM_UPDATE_VERSION이 있을 때만.</summary>
     void StartUpdateChecks()
     {
+        _updateTimer?.Stop();
+        _updateTimer = null;
+        if (!State.CheckUpdates) return;
         if (DevMode && Environment.GetEnvironmentVariable("DARKROOM_UPDATE_VERSION") == null) return;
         _updateTimer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.Background, (_, _) =>
         {
             _updateTimer!.Interval = TimeSpan.FromHours(12);
             _ = Updates.CheckAsync();
         }, Dispatcher);
+    }
+
+    public void SetCheckUpdates(bool on)
+    {
+        if (State.CheckUpdates == on) return;
+        State.CheckUpdates = on;
+        StartUpdateChecks();
+        SaveStateSoon();
+        Changed?.Invoke();
     }
 
     public Task CheckUpdatesAsync() => Updates.CheckAsync();
@@ -724,6 +736,7 @@ internal sealed class AppController : IDisposable
             autoStart = AutoStart.IsEnabled,
             logs = AppPaths.Logs,
             update = Updates.Snapshot(),
+            checkUpdates = State.CheckUpdates,
         },
     };
 }

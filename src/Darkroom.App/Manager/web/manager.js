@@ -47,7 +47,7 @@ function renderWidgets() {
   ul.replaceChildren(...state.widgets.map((w) => el("li",
     { class: w.id === selected ? "selected" : "", onclick: () => { selected = w.id; render(); } },
     el("span", { class: "dot " + (w.error ? "err" : w.running ? "on" : "") }),
-    el("div", { class: "grow" }, el("div", { class: "name" }, w.name), el("div", { class: "sub" }, w.id)),
+    el("div", { class: "grow" }, el("div", { class: "name" }, w.name)),
     el("span", { onclick: (e) => e.stopPropagation() },
       switchInput(w.enabled, (on) => send({ type: "setEnabled", id: w.id, enabled: on }))),
   )));
@@ -157,19 +157,21 @@ function renderHeader() {
 
 // ---------- 오른쪽 아래: 환경 ----------
 function renderEnv() {
-  const form = $("#env");
-  if (form.contains(document.activeElement)) return; // 입력 중이면 덮어쓰지 않음
+  // 사진 위젯 넘김 간격은 사진 위젯이 켜져 있을 때만
+  $("#photosIntervalRow").hidden = !state.widgets.some((w) => w.enabled && w.subscribe.some((k) => k.startsWith("photos.")));
   const p = state.providers;
+  if (document.activeElement !== $("#photosFolder")) {
+    $("#photosFolder").value = p.photosFolder || "";
+    $("#photosFolder").placeholder = "기본: " + state.photosFolder;
+  }
+  if ($("#env").contains(document.activeElement)) return; // 입력 중이면 덮어쓰지 않음
   $("#locName").value = p.locationName;
   $("#lat").value = p.latitude;
   $("#lon").value = p.longitude;
-  $("#photosFolder").value = p.photosFolder || "";
-  $("#photosFolder").placeholder = "기본: " + state.photosFolder;
   $("#photosInterval").value = p.photosIntervalSeconds;
 }
 
-$("#env").addEventListener("submit", (e) => {
-  e.preventDefault();
+function sendProviders() {
   send({ type: "setProviders", value: {
     locationName: $("#locName").value.trim(),
     latitude: Number($("#lat").value),
@@ -177,9 +179,14 @@ $("#env").addEventListener("submit", (e) => {
     photosFolder: $("#photosFolder").value.trim() || null,
     photosIntervalSeconds: Math.round(Number($("#photosInterval").value)),
   } });
+}
+$("#env").addEventListener("submit", (e) => {
+  e.preventDefault();
+  sendProviders();
   document.activeElement.blur();
   toast("환경 설정 적용");
 });
+$("#photosFolder").addEventListener("change", () => { sendProviders(); toast("사진 폴더를 바꿨습니다"); });
 $("#pickFolder").addEventListener("click", () => send({ type: "pickPhotosFolder" }));
 
 // ---------- 오른쪽: 배경화면 바꾸기 ----------
@@ -207,6 +214,7 @@ $("#wallNext").addEventListener("click", () => send({ type: "nextWallpaper" }));
 // ---------- 오른쪽 맨 아래: 앱 ----------
 function renderApp() {
   $("#autoStart").checked = state.app.autoStart;
+  $("#checkUpdates").checked = state.app.checkUpdates;
   $("#appVersion").textContent = `Darkroom ${state.app.version}`;
   const u = state.app.update || {};
   const btn = $("#updateBtn");
@@ -221,7 +229,19 @@ function renderApp() {
     installing: "설치 중… 끝나면 다시 시작합니다",
     failed: u.message || "",
   }[u.state] || "";
+
+  // 상단 알림 줄: 새 버전이 있을 때만("나중에"를 누르면 이 창에서는 다시 안 보임)
+  const busy = u.state === "downloading" || u.state === "installing";
+  $("#updateBar").hidden = updateBarDismissed || !(u.state === "available" || busy);
+  $("#updateBarText").textContent = busy ? $("#updateText").textContent : `새 버전 ${u.latest}이 나왔습니다.` + (u.message ? ` ${u.message}` : "");
+  $("#updateBarBtn").hidden = busy;
+  $("#updateBarBtn").textContent = u.installed ? "지금 업데이트" : "다운로드 페이지";
+  $("#updateBarLater").hidden = busy;
 }
+let updateBarDismissed = false;
+$("#updateBarBtn").addEventListener("click", () => send({ type: "installUpdate" }));
+$("#updateBarLater").addEventListener("click", () => { updateBarDismissed = true; $("#updateBar").hidden = true; });
+$("#checkUpdates").addEventListener("change", (e) => send({ type: "setCheckUpdates", value: e.target.checked }));
 $("#updateBtn").addEventListener("click", () => {
   const u = (state && state.app.update) || {};
   send({ type: u.state === "available" ? "installUpdate" : "checkUpdate" });

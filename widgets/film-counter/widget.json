@@ -1,6 +1,6 @@
 {
   "id": "darkroom.film-counter",
-  "name": "Film Counter",
+  "name": "필름 카운터",
   "version": "0.1.0",
   "size": { "width": 360, "height": 166, "inset": 12 },
   "windowMode": "desktop",
