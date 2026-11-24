@@ -61,8 +61,8 @@
   try { st = { ...st, ...JSON.parse(localStorage.getItem("timer") || "{}") }; } catch { /* 처음 */ }
   const save = () => { try { localStorage.setItem("timer", JSON.stringify(st)); } catch { /* 무시 */ } };
 
-  const presets = () => String(darkroom.settings.presets || "5,15,25,60").split(",")
-    .map((s) => parseFloat(s)).filter((n) => n > 0 && n <= 600).slice(0, 4);
+  const presets = () => (Array.isArray(darkroom.settings.presets) ? darkroom.settings.presets : [5, 15, 25, 60])
+    .map(Number).filter((n) => n > 0 && n <= 600).slice(0, 4);
   const mmss = (ms) => {
     const s = Math.ceil(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
     return h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;

@@ -285,6 +285,26 @@ public class BusAndHostTests
         Assert.Equal(expected, WeatherProvider.SunsetScore(low, mid, high, vis, rain));
 
     [Fact]
+    public void List_setting_types_validate_items()
+    {
+        JsonElement J(string s) => JsonDocument.Parse(s).RootElement;
+        var dates = new SettingSpec { Type = "dates", MaxItems = 2 };
+        Assert.True(dates.Accepts(J("""[{"date":"2026-12-25","name":"크리스마스","yearly":true,"pinned":false}]""")));
+        Assert.False(dates.Accepts(J("""[{"date":"2026-13-40","name":"x"}]""")));          // 없는 날짜
+        Assert.False(dates.Accepts(J("""[{"date":"2026-12-25"}]""")));                     // 이름 없음
+        Assert.False(dates.Accepts(J("""[{"date":"2026-01-01","name":"a"},{"date":"2026-01-02","name":"b"},{"date":"2026-01-03","name":"c"}]"""))); // 최대 개수 초과
+
+        var links = new SettingSpec { Type = "links" };
+        Assert.True(links.Accepts(J("""[{"name":"메모장","target":"C:\\Windows\\notepad.exe"}]""")));
+        Assert.False(links.Accepts(J("""[{"name":"빈 경로","target":""}]""")));
+
+        var nums = new SettingSpec { Type = "numbers", Min = 1, Max = 600 };
+        Assert.True(nums.Accepts(J("[5, 25, 60]")));
+        Assert.False(nums.Accepts(J("[0]")));
+        Assert.False(nums.Accepts(J("\"5,25\"")));
+    }
+
+    [Fact]
     public void Audio_spectrum_peaks_at_the_tone()
     {
         const int rate = 48000;

@@ -63,6 +63,41 @@ h3 { margin: 20px 0 8px; font-size: 12px; color: var(--muted); font-weight: 600;
 .title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
 .title h1 { margin: 0; font-size: 20px; font-weight: 600; }
 .title .ver { color: var(--muted); }
+.detail .title { justify-content: space-between; align-items: center; }
+.desc { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+
+/* 목록 편집기(날짜·바로가기·숫자) */
+.list-editor { display: flex; flex-direction: column; gap: 6px; }
+.list-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--raised); }
+.list-row.pinned { box-shadow: inset 3px 0 0 var(--accent); }
+.list-row input[type=text] { flex: 1; min-width: 0; }
+.list-row input[type=date] { width: 136px; flex: none; color-scheme: dark; }
+.list-row .url { flex: 1.4; }
+.list-row .path { flex: 1; min-width: 0; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-row .check { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.link-icon { width: 22px; height: 22px; display: grid; place-items: center; flex: none; font-size: 16px; }
+.link-icon img { width: 22px; height: 22px; }
+.star { background: none; border: 0; padding: 0 2px; font-size: 18px; color: var(--muted); cursor: pointer; line-height: 1; }
+.star.on { color: var(--accent); }
+.icon-btn { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 6px; font-size: 12px; }
+.icon-btn:hover { color: var(--fg); background: var(--line); }
+.list-actions { display: flex; gap: 6px; margin-top: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border-radius: 999px; background: var(--raised); font-size: 13px; }
+.chip button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0 6px; }
+.num-input { width: 90px; }
+
+/* 위치 찾기 */
+.loc-now { font-size: 14px; font-weight: 600; }
+.city-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.city-results li { display: flex; flex-direction: column; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.city-results li:hover { background: var(--raised); }
+.city-results li.sub { cursor: default; }
+
+/* 접힌 고급 정보 */
+details.advanced { margin-top: 18px; }
+details.advanced summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+details.advanced[open] summary { margin-bottom: 10px; }
 .meta { color: var(--muted); font-size: 12px; margin-bottom: 6px; word-break: break-all; }
 .error { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
 

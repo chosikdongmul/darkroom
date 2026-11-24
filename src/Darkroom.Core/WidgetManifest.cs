@@ -22,30 +22,53 @@ public sealed class WidgetSize
 
 public sealed class SettingSpec
 {
-    /// <summary>bool | number | string | choice</summary>
+    /// <summary>bool | number | string | choice | dates | links | numbers
+    /// dates   = [{ date: "YYYY-MM-DD", name, yearly?, pinned? }] (D-day 등)
+    /// links   = [{ name, target }] (앱·폴더·웹 주소)
+    /// numbers = [숫자, ...] (Min~Max)</summary>
     public string Type { get; set; } = "string";
     public JsonElement? Default { get; set; }
     public string? Label { get; set; }
+    /// <summary>Manager에서 설정 아래에 보여 줄 짧은 도움말</summary>
+    public string? Hint { get; set; }
     public List<string>? Options { get; set; }
     public double? Min { get; set; }
     public double? Max { get; set; }
     public double? Step { get; set; }
+    /// <summary>dates·links·numbers의 최대 개수</summary>
+    public int? MaxItems { get; set; }
 
     public bool Accepts(JsonElement v) => Type switch
     {
         "bool" => v.ValueKind is JsonValueKind.True or JsonValueKind.False,
-        "number" => v.ValueKind == JsonValueKind.Number
-                    && (Min == null || v.GetDouble() >= Min) && (Max == null || v.GetDouble() <= Max),
+        "number" => v.ValueKind == JsonValueKind.Number && InRange(v.GetDouble()),
         "string" => v.ValueKind == JsonValueKind.String && v.GetString()!.Length <= 4096,
         "choice" => v.ValueKind == JsonValueKind.String && Options != null && Options.Contains(v.GetString()!),
+        "dates" => IsList(v, 50, e => Str(e, "date", 10) is { } d && DateOnly.TryParseExact(d, "yyyy-MM-dd", out _)
+                                       && Str(e, "name", 60) != null && OptBool(e, "yearly") && OptBool(e, "pinned")),
+        "links" => IsList(v, 12, e => Str(e, "name", 40) != null && Str(e, "target", 1024) is { Length: > 0 }),
+        "numbers" => IsList(v, 8, e => e.ValueKind == JsonValueKind.Number && InRange(e.GetDouble())),
         _ => false,
     };
+
+    bool InRange(double d) => (Min == null || d >= Min) && (Max == null || d <= Max);
+
+    bool IsList(JsonElement v, int hardMax, Func<JsonElement, bool> item) =>
+        v.ValueKind == JsonValueKind.Array && v.GetArrayLength() <= Math.Min(MaxItems ?? hardMax, hardMax) && v.EnumerateArray().All(item);
+
+    static string? Str(JsonElement e, string name, int max) =>
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var s) && s.ValueKind == JsonValueKind.String && s.GetString()!.Length <= max ? s.GetString() : null;
+
+    static bool OptBool(JsonElement e, string name) =>
+        !e.TryGetProperty(name, out var b) || b.ValueKind is JsonValueKind.True or JsonValueKind.False;
 }
 
 public sealed partial class WidgetManifest
 {
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
+    /// <summary>Manager 목록에 보여 줄 한 줄 설명</summary>
+    public string? Description { get; set; }
     public string Version { get; set; } = "0.0.0";
     public string Entry { get; set; } = "index.html";
     public WidgetSize Size { get; set; } = new();
@@ -59,7 +82,7 @@ public sealed partial class WidgetManifest
     [JsonIgnore] public string HostName => Id + ".darkroom";
 
     public const string FileName = "widget.json";
-    static readonly string[] KnownSettingTypes = ["bool", "number", "string", "choice"];
+    static readonly string[] KnownSettingTypes = ["bool", "number", "string", "choice", "dates", "links", "numbers"];
     static readonly string[] KnownPermissions = ["network", "launch", "notify"];
     /// <summary>호스트가 쓰는 가상 주소(assets.darkroom = 내장 글꼴, manager.darkroom, photos.darkroom)와 겹치는 id</summary>
     static readonly string[] ReservedIds = ["assets", "manager", "photos"];
@@ -114,6 +137,7 @@ public sealed partial class WidgetManifest
                 "bool" => DrJson.ToElement(false),
                 "number" => DrJson.ToElement(spec.Min ?? 0),
                 "choice" => DrJson.ToElement(spec.Options![0]),
+                "dates" or "links" or "numbers" => DrJson.ToElement(Array.Empty<object>()),
                 _ => DrJson.ToElement(""),
             };
         }

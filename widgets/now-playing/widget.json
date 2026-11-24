@@ -1,6 +1,7 @@
 {
   "id": "darkroom.sample.media",
   "name": "지금 재생 중",
+  "description": "재생 중인 음악과 재생 버튼",
   "version": "0.1.0",
   "size": { "width": 360, "height": 132, "inset": 12 },
   "windowMode": "desktop",

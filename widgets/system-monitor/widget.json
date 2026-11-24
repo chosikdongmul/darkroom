@@ -1,6 +1,7 @@
 {
   "id": "darkroom.sample.system",
   "name": "시스템",
+  "description": "CPU·메모리·디스크·네트워크 사용량",
   "version": "0.1.0",
   "size": { "width": 360, "height": 196, "inset": 12 },
   "windowMode": "desktop",

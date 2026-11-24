@@ -1,6 +1,7 @@
 {
   "id": "darkroom.film-counter",
   "name": "필름 카운터",
+  "description": "오늘·이번 주에 찍은 사진 수",
   "version": "0.1.0",
   "size": { "width": 360, "height": 166, "inset": 12 },
   "windowMode": "desktop",

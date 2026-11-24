@@ -1,6 +1,7 @@
 {
   "id": "darkroom.golden-hour",
   "name": "골든아워",
+  "description": "골든·블루아워까지 남은 시간과 노을 예보",
   "version": "0.2.0",
   "size": { "width": 360, "height": 214, "inset": 12 },
   "windowMode": "desktop",

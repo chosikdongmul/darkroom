@@ -1,7 +1,8 @@
 {
   "id": "darkroom.countdown",
-  "name": "D-day",
-  "version": "0.1.0",
+  "name": "디데이",
+  "description": "기다리는 날까지 남은 날 수 (D-day)",
+  "version": "0.2.0",
   "entry": "index.html",
   "size": { "width": 360, "height": 168, "inset": 12 },
   "windowMode": "desktop",
@@ -9,9 +10,11 @@
   "permissions": [],
   "settings": {
     "events": {
-      "type": "string",
-      "default": "2026-12-25 크리스마스, 01-01 새해",
-      "label": "날짜 (쉼표로 구분, 'YYYY-MM-DD 이름' 또는 매년 'MM-DD 이름')"
+      "type": "dates",
+      "label": "날짜",
+      "hint": "★를 누른 날을 크게 보여 줍니다. ★가 없으면 가장 가까운 날을 보여 줍니다.",
+      "maxItems": 20,
+      "default": [{ "date": "2026-12-25", "name": "크리스마스", "yearly": true, "pinned": false }]
     },
     "countToday": { "type": "bool", "default": false, "label": "당일을 1일째로 세기" }
   }

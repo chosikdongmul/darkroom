@@ -1,6 +1,7 @@
 {
   "id": "darkroom.sample.photo",
   "name": "사진 액자",
+  "description": "사진 폴더의 사진을 차례로",
   "version": "0.1.0",
   "size": { "width": 360, "height": 304, "inset": 12 },
   "windowMode": "desktop",

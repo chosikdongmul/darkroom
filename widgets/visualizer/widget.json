@@ -1,6 +1,7 @@
 {
   "id": "darkroom.visualizer",
   "name": "비주얼라이저",
+  "description": "재생 중인 소리를 막대 그래프로",
   "version": "0.1.0",
   "entry": "index.html",
   "size": { "width": 360, "height": 140, "inset": 12 },

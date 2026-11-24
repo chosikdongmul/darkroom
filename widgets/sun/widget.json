@@ -1,6 +1,7 @@
 {
   "id": "darkroom.sample.sun",
   "name": "해",
+  "description": "오늘 일출·일몰과 골든·블루아워 시각",
   "version": "0.1.0",
   "size": { "width": 360, "height": 186, "inset": 12 },
   "windowMode": "desktop",

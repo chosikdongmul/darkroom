@@ -20,6 +20,7 @@
     font-family: var(--dr-font-num, sans-serif); font-weight: var(--dr-num-weight, 600); font-size: 21px;
     transition: box-shadow .12s, transform .12s;
   }
+  .tile img { width: 34px; height: 34px; }
   .item:hover .tile { box-shadow: inset 0 0 0 1.5px var(--dr-accent, #ff9f45); }
   .item:active .tile { transform: scale(.94); }
   .item.err .tile { box-shadow: inset 0 0 0 1.5px #e5484d; }
@@ -32,21 +33,17 @@
 <script>
   const grid = document.getElementById("grid");
 
-  // "이름=경로; 이름=경로" → [{ name, target }] (최대 8개)
-  function parse(text) {
-    return String(text || "").split(";").map((s) => s.trim()).filter(Boolean).map((s) => {
-      const i = s.indexOf("=");
-      return i > 0 ? { name: s.slice(0, i).trim(), target: s.slice(i + 1).trim() } : { name: s, target: s };
-    }).filter((x) => x.target).slice(0, 8);
-  }
+  // 설정 [{ name, target }] (최대 8개)
+  const parse = (list) => (Array.isArray(list) ? list : []).filter((x) => x && x.target).slice(0, 8);
 
   // 이름의 첫 글자(영문은 대문자). 이모지 등도 한 글자로 센다.
-  const mono = (name) => ([...name.trim()][0] || "?").toUpperCase();
+  const mono = (name) => ([...String(name).trim()][0] || "?").toUpperCase();
+  const isWeb = (t) => /^https?:/i.test(t);
 
   function render() {
     const items = parse(darkroom.settings.items);
     if (!items.length) {
-      grid.innerHTML = `<div class="empty">Manager에서 이 위젯의 설정에 항목을 넣어 주세요.<br>예: 메모장=C:\\Windows\\notepad.exe</div>`;
+      grid.innerHTML = `<div class="empty">트레이 아이콘 → Manager → 바로가기에서<br>"+ 앱", "+ 폴더", "+ 웹 주소"로 추가하세요.</div>`;
       return;
     }
     grid.replaceChildren(...items.map(({ name, target }) => {
@@ -55,8 +52,16 @@
       el.title = target;
       el.dataset.noDrag = ""; // 타일은 누르면 열리고, 빈 곳을 끌면 위젯이 움직인다
       el.innerHTML = `<div class="tile"></div><div class="name"></div>`;
-      el.children[0].textContent = mono(name);
-      el.children[1].textContent = name;
+      const tile = el.children[0];
+      tile.textContent = mono(name);
+      if (!isWeb(target)) {
+        // 앱·폴더는 Windows 아이콘. 못 가져오면 첫 글자 그대로.
+        const img = new Image();
+        img.alt = "";
+        img.onload = () => { tile.textContent = ""; tile.classList.add("has-icon"); tile.append(img); };
+        img.src = "https://assets.darkroom/icon?t=" + encodeURIComponent(target);
+      }
+      el.children[1].textContent = name || target;
       el.addEventListener("click", () => darkroom.action({ type: "open", target }));
       return el;
     }));

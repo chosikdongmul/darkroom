@@ -38,55 +38,58 @@
     <div class="what"><div class="name" id="name"></div><div class="date muted" id="date"></div></div>
   </div>
   <div class="rest" id="rest"></div>
-  <div class="empty muted" id="empty" hidden>Manager에서 이 위젯의 설정에<br>날짜를 넣어 주세요. 예: 2026-12-25 크리스마스</div>
+  <div class="empty muted" id="empty" hidden>트레이 아이콘 → Manager → 디데이에서<br>"+ 날짜 추가"를 눌러 날짜를 넣어 주세요.</div>
 </main>
 <script>
   const $ = (id) => document.getElementById(id);
   const DAY = 864e5, DOW = "일월화수목금토";
   let lastKey = "";
 
-  // "2026-12-25 크리스마스" / "12-25 크리스마스"(매년) → [{ name, date }] (오늘 이후, 가까운 순)
-  function parseEvents(text, today) {
+  // 설정 [{ date: "2026-12-25", name, yearly, pinned }] → [{ name, date, pinned }]
+  // 매년: 올해 날짜가 지났으면 내년. 지난 날(매년 아님)은 ★일 때만 남긴다(D+N으로 셈).
+  function parseEvents(list, today) {
     const out = [];
-    for (const part of String(text || "").split(/[,\n]/)) {
-      const m = part.trim().match(/^(?:(\d{4})[-./])?(\d{1,2})[-./](\d{1,2})\s*(.*)$/);
+    for (const e of Array.isArray(list) ? list : []) {
+      const m = String(e.date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if (!m) continue;
-      const [, y, mo, d, name] = m;
-      let date = new Date(y ? +y : today.getFullYear(), +mo - 1, +d);
-      if (!y && date < today) date = new Date(today.getFullYear() + 1, +mo - 1, +d); // 매년: 지났으면 내년
-      if (date < today || isNaN(date)) continue;
-      out.push({ name: name.trim() || "이름 없음", date });
+      let date = new Date(+m[1], +m[2] - 1, +m[3]);
+      if (e.yearly) {
+        date = new Date(today.getFullYear(), +m[2] - 1, +m[3]);
+        if (date < today) date = new Date(today.getFullYear() + 1, +m[2] - 1, +m[3]);
+      }
+      if (isNaN(date) || (date < today && !e.pinned)) continue;
+      out.push({ name: String(e.name || "").trim() || "이름 없음", date, pinned: !!e.pinned });
     }
     return out.sort((a, b) => a.date - b.date);
   }
 
-  function label(days) {
-    if (days === 0) return "D-DAY";
-    return `D-${days}`;
-  }
+  const label = (days) => (days === 0 ? "D-DAY" : days > 0 ? `D-${days}` : `D+${-days}`);
 
   function render(nowMs) {
     const now = new Date(nowMs);
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const s = darkroom.settings;
-    const key = `${today.toDateString()}|${s.events}|${s.countToday}`;
+    const key = `${today.toDateString()}|${JSON.stringify(s.events)}|${s.countToday}`;
     if (key === lastKey) return;
     lastKey = key;
 
     const events = parseEvents(s.events, today);
-    const days = (e) => Math.round((e.date - today) / DAY) + (s.countToday && e.date > today ? 1 : 0);
+    // 남은 날(+) / 지난 날(−). "당일을 1일째로": 지난 날은 D+1부터, 다가올 날은 하루 더.
+    const days = (e) => { const d = Math.round((e.date - today) / DAY); return s.countToday ? (d > 0 ? d + 1 : d < 0 ? d - 1 : d) : d; };
     const fmt = (d) => `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
     $("empty").hidden = events.length > 0;
     $("main").hidden = $("rest").hidden = $("label").hidden = events.length === 0;
     if (!events.length) return;
 
-    const [first, ...others] = events;
+    // ★ 고른 날이 먼저, 없으면 가장 가까운 날
+    const first = events.find((e) => e.pinned) || events.find((e) => e.date >= today) || events[0];
+    const others = events.filter((e) => e !== first && e.date >= today);
     const n = days(first);
     $("d").className = "d" + (n === 0 ? " today" : "");
-    $("d").innerHTML = n === 0 ? "D-DAY" : `<small>D−</small>${n}`;
+    $("d").innerHTML = n === 0 ? "D-DAY" : `<small>${n > 0 ? "D−" : "D+"}</small>${Math.abs(n)}`;
     $("name").textContent = first.name;
     $("date").textContent = first.date.getFullYear() !== today.getFullYear() ? `${first.date.getFullYear()}년 ${fmt(first.date)}` : fmt(first.date);
-    $("label").textContent = n === 0 ? "오늘" : "다가오는 날";
+    $("label").textContent = n === 0 ? "오늘" : first.pinned ? "★ 내가 고른 날" : n < 0 ? "지난 날" : "다가오는 날";
     $("rest").replaceChildren(...others.slice(0, 2).map((e) => {
       const row = document.createElement("div");
       row.className = "row";

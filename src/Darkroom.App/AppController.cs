@@ -176,11 +176,22 @@ internal sealed class AppController : IDisposable
     public static bool IsAssetUri(string uri) => uri.StartsWith("https://" + AssetHost + "/", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>https://assets.darkroom/ 요청에 sdk 폴더의 파일로 응답했으면 true.</summary>
-    public bool TryServeAsset(CoreWebView2WebResourceRequestedEventArgs e)
+    public bool TryServeAsset(CoreWebView2WebResourceRequestedEventArgs e, bool allowIcons = false)
     {
         if (!IsAssetUri(e.Request.Uri) || !Uri.TryCreate(e.Request.Uri, UriKind.Absolute, out var uri)) return false;
         var host = uri.Host;
         var rel = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/'));
+        // https://assets.darkroom/icon?t=<경로> → 그 앱·폴더의 Windows 아이콘(launch 권한이 있는 위젯과 Manager만)
+        if (rel == "icon")
+        {
+            var t = System.Web.HttpUtility.ParseQueryString(uri.Query)["t"];
+            var png = allowIcons && t != null ? ShellIcons.Png(t) : null;
+            e.Response = png == null
+                ? Env.CreateWebResourceResponse(null, 404, "Not Found", "Access-Control-Allow-Origin: *")
+                : Env.CreateWebResourceResponse(new MemoryStream(png, writable: false), 200, "OK",
+                    "Content-Type: image/png\r\nCache-Control: max-age=3600\r\nAccess-Control-Allow-Origin: *");
+            return true;
+        }
         byte[]? bytes = null;
         if (SafeAssetName.IsMatch(rel))
         {
@@ -505,6 +516,47 @@ internal sealed class AppController : IDisposable
         return null;
     }
 
+    // =========================================================== 도시 검색(위치 설정용)
+    static readonly System.Net.Http.HttpClient GeoHttp = new() { Timeout = TimeSpan.FromSeconds(10) };
+
+    /// <summary>도시 이름 → 후보(Open-Meteo 지오코딩, 키 불필요). 실패하면 빈 목록.</summary>
+    public static async Task<List<object>> SearchCitiesAsync(string query)
+    {
+        query = query.Trim();
+        if (query.Length < 1 || query.Length > 60) return new List<object>();
+        // 한국 도시는 "부산광역시"·"서울특별시"처럼 전체 이름으로 등록돼 있어 "부산"만으로는 안 나온다 → 붙여서 같이 찾는다
+        var queries = new List<string> { query };
+        if (query.Any(c => c is >= '가' and <= '힣') && !query.EndsWith('시')) queries.AddRange([query + "시", query + "광역시", query + "특별시"]);
+        var found = new Dictionary<string, (object item, long pop)>();
+        foreach (var q in queries)
+        {
+            try
+            {
+                var json = await GeoHttp.GetStringAsync($"https://geocoding-api.open-meteo.com/v1/search?name={Uri.EscapeDataString(q)}&count=6&language=ko&format=json");
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (!doc.RootElement.TryGetProperty("results", out var results)) continue;
+                foreach (var r in results.EnumerateArray())
+                {
+                    string? S(string n) => r.TryGetProperty(n, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+                    double lat = Math.Round(r.GetProperty("latitude").GetDouble(), 4), lon = Math.Round(r.GetProperty("longitude").GetDouble(), 4);
+                    var key = $"{Math.Round(lat, 1)},{Math.Round(lon, 1)}|{S("name")}";
+                    long pop = r.TryGetProperty("population", out var p) && p.TryGetInt64(out var pv) ? pv : 0;
+                    found.TryAdd(key, (new
+                    {
+                        name = S("name"), region = string.Join(", ", new[] { S("admin1"), S("country") }.Where(x => !string.IsNullOrEmpty(x)).Distinct()),
+                        latitude = lat, longitude = lon,
+                    }, pop));
+                }
+            }
+            catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException)
+            {
+                Log.Warn($"도시 검색 실패({q}): {ex.Message}");
+            }
+        }
+        // 사람이 많이 사는 곳(큰 도시)이 먼저
+        return found.Values.OrderByDescending(x => x.pop).Take(6).Select(x => x.item).ToList();
+    }
+
     // =========================================================== Provider 환경 설정
     public string PhotosFolder => PhotosProvider.ResolveFolder(State.Providers);
 
@@ -792,7 +844,7 @@ internal sealed class AppController : IDisposable
             _open.TryGetValue(m.Id, out var h);
             return new
             {
-                id = m.Id, name = m.Name, version = m.Version, folder = m.Folder,
+                id = m.Id, name = m.Name, description = m.Description, version = m.Version, folder = m.Folder,
                 enabled = st.Enabled, running = h != null, error = h?.LastError,
                 windowMode = st.WindowMode ?? m.WindowMode, effectiveMode = h?.Window?.Mode,
                 opacity = st.Opacity, locked = st.Locked, hoverFade = st.HoverFade,

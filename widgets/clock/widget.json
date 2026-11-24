@@ -1,6 +1,7 @@
 {
   "id": "darkroom.clock",
   "name": "노출값 시계",
+  "description": "시간과 지금 밖에서 찍기 좋은 노출값",
   "version": "0.5.0",
   "entry": "index.html",
   "size": { "width": 360, "height": 168, "resizable": false, "inset": 12 },

@@ -41,7 +41,7 @@ internal sealed class ManagerWindow : Window
         core.Settings.IsZoomControlEnabled = false;
         core.SetVirtualHostNameToFolderMapping(Host, AppPaths.ManagerWeb, CoreWebView2HostResourceAccessKind.DenyCors);
         core.AddWebResourceRequestedFilter(AppController.AssetFilter, CoreWebView2WebResourceContext.All);
-        core.WebResourceRequested += (_, e) => _app.TryServeAsset(e);
+        core.WebResourceRequested += (_, e) => _app.TryServeAsset(e, allowIcons: true);
         core.NavigationStarting += (_, e) => { if (!e.Uri.StartsWith($"https://{Host}/", StringComparison.OrdinalIgnoreCase)) e.Cancel = true; };
         core.NewWindowRequested += (_, e) => e.Handled = true;
         core.WebMessageReceived += async (_, e) => await OnMessageAsync(e.WebMessageAsJson);
@@ -76,6 +76,30 @@ internal sealed class ManagerWindow : Window
         return _app.SetProviderSettings(next);
     }
 
+    /// <summary>바로가기 목록에 넣을 앱(시작 메뉴 바로가기·exe) 또는 폴더를 고른다 → 웹 쪽에 "picked"로 돌려준다.</summary>
+    void PickLink(string id, string key, bool folder)
+    {
+        var owner = new Win32Owner(new WindowInteropHelper(this).Handle);
+        string? path = null, name = null;
+        if (folder)
+        {
+            using var dlg = new System.Windows.Forms.FolderBrowserDialog { Description = "바로가기에 넣을 폴더를 고르세요", UseDescriptionForTitle = true };
+            if (dlg.ShowDialog(owner) == System.Windows.Forms.DialogResult.OK) { path = dlg.SelectedPath; name = Path.GetFileName(path.TrimEnd('\\')); if (name.Length == 0) name = path; }
+        }
+        else
+        {
+            using var dlg = new System.Windows.Forms.OpenFileDialog
+            {
+                Title = "바로가기에 넣을 앱을 고르세요 (시작 메뉴)",
+                Filter = "앱·바로가기 (*.lnk;*.exe;*.url)|*.lnk;*.exe;*.url|모든 파일 (*.*)|*.*",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+                DereferenceLinks = false,
+            };
+            if (dlg.ShowDialog(owner) == System.Windows.Forms.DialogResult.OK) { path = dlg.FileName; name = Path.GetFileNameWithoutExtension(path); }
+        }
+        if (path != null) Post(new { type = "picked", id, key, item = new { name = name!.Length > 40 ? name[..40] : name, target = path } });
+    }
+
     sealed class Win32Owner(IntPtr handle) : System.Windows.Forms.IWin32Window { public IntPtr Handle => handle; }
 
     async Task OnMessageAsync(string json)
@@ -108,6 +132,9 @@ internal sealed class ManagerWindow : Window
                     error = ps == null ? "환경 설정 형식 오류" : _app.SetProviderSettings(ps);
                     break;
                 case "pickPhotosFolder": error = PickPhotosFolder(); break;
+                case "pickApp": PickLink(S("id"), S("key"), folder: false); break;
+                case "pickFolder": PickLink(S("id"), S("key"), folder: true); break;
+                case "searchCity": Post(new { type = "cities", query = S("query"), results = await AppController.SearchCitiesAsync(S("query")) }); break;
                 case "setWallpaper":
                     var wv = V();
                     if (wv.ValueKind != JsonValueKind.Object) { error = "배경화면 설정 형식 오류"; break; }

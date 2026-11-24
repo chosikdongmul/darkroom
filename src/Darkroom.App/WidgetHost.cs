@@ -94,7 +94,7 @@ internal sealed class WidgetHost : IDisposable
         core.WebResourceRequested += (_, e) => TryServeWidgetFile(e);
         // 내장 글꼴: https://assets.darkroom/fonts/... → sdk/fonts (호스트가 직접 응답)
         core.AddWebResourceRequestedFilter(AppController.AssetFilter, CoreWebView2WebResourceContext.All);
-        core.WebResourceRequested += (_, e) => _app.TryServeAsset(e);
+        core.WebResourceRequested += (_, e) => _app.TryServeAsset(e, allowIcons: Manifest.HasPermission("launch"));
         MapPhotosCache();
         if (!Manifest.HasPermission("network"))
         {

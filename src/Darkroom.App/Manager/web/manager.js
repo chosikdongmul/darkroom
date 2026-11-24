@@ -44,10 +44,11 @@ function switchInput(checked, onchange, text) {
 // ---------- 왼쪽: 위젯 목록 ----------
 function renderWidgets() {
   const ul = $("#widgets");
-  ul.replaceChildren(...state.widgets.map((w) => el("li",
+  const sorted = [...state.widgets].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  ul.replaceChildren(...sorted.map((w) => el("li",
     { class: w.id === selected ? "selected" : "", onclick: () => { selected = w.id; render(); } },
     el("span", { class: "dot " + (w.error ? "err" : w.running ? "on" : "") }),
-    el("div", { class: "grow" }, el("div", { class: "name" }, w.name)),
+    el("div", { class: "grow" }, el("div", { class: "name" }, w.name), w.description ? el("div", { class: "sub" }, w.description) : null),
     el("span", { onclick: (e) => e.stopPropagation() },
       switchInput(w.enabled, (on) => send({ type: "setEnabled", id: w.id, enabled: on }))),
   )));
@@ -81,11 +82,85 @@ function settingControl(w, key, spec) {
   }
 }
 
+// ---------- 목록 편집기(날짜·바로가기·숫자) ----------
+const LIST_TYPES = ["dates", "links", "numbers"];
+let pendingFocus = null; // 방금 추가한 줄의 입력칸에 커서를 둔다 { id, key, index, field }
+
+const todayPlus = (days) => { const d = new Date(Date.now() + days * 864e5); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const iconUrl = (target) => "https://assets.darkroom/icon?t=" + encodeURIComponent(target);
+const isWeb = (t) => /^https?:/i.test(t || "");
+
+function listEditor(w, key, spec) {
+  const items = (Array.isArray(w.settings[key]) ? w.settings[key] : []).map((x) => (typeof x === "object" ? { ...x } : x));
+  const max = spec.maxItems || 8;
+  const save = (next) => send({ type: "setSetting", id: w.id, key, value: next });
+  const full = items.length >= max;
+  const focusAttr = (index, field) => pendingFocus && pendingFocus.id === w.id && pendingFocus.key === key && pendingFocus.index === index && pendingFocus.field === field;
+  const remove = (i) => el("button", { type: "button", class: "icon-btn", title: "지우기", onclick: () => save(items.filter((_, j) => j !== i)) }, "✕");
+
+  if (spec.type === "dates") {
+    const rows = items.map((it, i) => el("div", { class: "list-row" + (it.pinned ? " pinned" : "") },
+      el("button", { type: "button", class: "star" + (it.pinned ? " on" : ""), title: it.pinned ? "크게 보여 주는 날(다시 누르면 해제)" : "이 날을 크게 보여 주기",
+        onclick: () => save(items.map((x, j) => ({ ...x, pinned: j === i ? !x.pinned : false }))) }, it.pinned ? "★" : "☆"),
+      el("input", { type: "date", value: it.date, onchange: (e) => { if (e.target.value) save(items.map((x, j) => (j === i ? { ...x, date: e.target.value } : x))); } }),
+      el("input", { type: "text", value: it.name || "", placeholder: "무슨 날인가요?", maxlength: 60, autofocus: focusAttr(i, "name"),
+        onchange: (e) => save(items.map((x, j) => (j === i ? { ...x, name: e.target.value.trim() } : x))) }),
+      el("label", { class: "check", title: "매년 같은 날 반복(생일·기념일)" },
+        el("input", { type: "checkbox", checked: !!it.yearly, onchange: (e) => save(items.map((x, j) => (j === i ? { ...x, yearly: e.target.checked } : x))) }), "매년"),
+      remove(i)));
+    return el("div", { class: "list-editor" }, ...rows,
+      items.length ? null : el("p", { class: "sub" }, "아직 날짜가 없습니다."),
+      el("div", { class: "list-actions" },
+        el("button", { type: "button", class: "small", disabled: full, onclick: () => {
+          pendingFocus = { id: w.id, key, index: items.length, field: "name" };
+          save([...items, { date: todayPlus(7), name: "", yearly: false, pinned: false }]);
+        } }, "+ 날짜 추가")));
+  }
+
+  if (spec.type === "links") {
+    const rows = items.map((it, i) => el("div", { class: "list-row" },
+      el("span", { class: "link-icon" }, isWeb(it.target)
+        ? "🌐"
+        : el("img", { src: iconUrl(it.target), alt: "", onerror: (e) => e.target.replaceWith(document.createTextNode("📄")) })),
+      el("input", { type: "text", value: it.name || "", placeholder: "이름", maxlength: 40, autofocus: focusAttr(i, "name"),
+        onchange: (e) => save(items.map((x, j) => (j === i ? { ...x, name: e.target.value.trim() } : x))) }),
+      isWeb(it.target)
+        ? el("input", { type: "text", class: "url", value: it.target, placeholder: "https://", autofocus: focusAttr(i, "target"),
+            onchange: (e) => { const v = e.target.value.trim(); if (v) save(items.map((x, j) => (j === i ? { ...x, target: /^[a-z]+:/i.test(v) ? v : "https://" + v } : x))); } })
+        : el("span", { class: "path", title: it.target }, it.target.replace(/^.*[\\/]/, "") || it.target),
+      remove(i)));
+    return el("div", { class: "list-editor" }, ...rows,
+      items.length ? null : el("p", { class: "sub" }, "아직 바로가기가 없습니다."),
+      el("div", { class: "list-actions" },
+        el("button", { type: "button", class: "small", disabled: full, onclick: () => send({ type: "pickApp", id: w.id, key }) }, "+ 앱"),
+        el("button", { type: "button", class: "small ghost", disabled: full, onclick: () => send({ type: "pickFolder", id: w.id, key }) }, "+ 폴더"),
+        el("button", { type: "button", class: "small ghost", disabled: full, onclick: () => {
+          pendingFocus = { id: w.id, key, index: items.length, field: "target" };
+          save([...items, { name: "웹사이트", target: "https://" }]);
+        } }, "+ 웹 주소")));
+  }
+
+  // numbers: 칩 + 추가
+  const unit = spec.unit || "분";
+  const input = el("input", { type: "number", min: spec.min ?? "", max: spec.max ?? "", step: spec.step ?? 1, placeholder: unit, class: "num-input" });
+  const add = () => {
+    const v = Number(input.value);
+    if (!(v > 0) || (spec.min != null && v < spec.min) || (spec.max != null && v > spec.max)) { toast(`${spec.min ?? 1}~${spec.max ?? 600} 사이로 넣어 주세요`, true); return; }
+    if (items.includes(v)) return;
+    save([...items, v].sort((a, b) => a - b));
+  };
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); add(); } });
+  return el("div", { class: "list-editor" },
+    el("div", { class: "chips" }, ...items.map((v, i) => el("span", { class: "chip" }, `${v}${unit}`,
+      el("button", { type: "button", title: "지우기", onclick: () => save(items.filter((_, j) => j !== i)) }, "✕")))),
+    full ? null : el("div", { class: "inline" }, input, el("button", { type: "button", class: "small", onclick: add }, "추가")));
+}
+
 function renderDetail() {
   const box = $("#detail");
   // 슬라이더·입력칸을 조작하는 중이면 다시 그리지 않는다(포커스·드래그 유지).
   const active = document.activeElement;
-  if (active && box.contains(active) && active.matches("input[type=range], input[type=text], input[type=number], input:not([type])")) return;
+  if (active && box.contains(active) && active.matches("input[type=range], input[type=text], input[type=number], input[type=date], input:not([type])")) return;
 
   const w = state.widgets.find((x) => x.id === selected);
   if (!w) { box.replaceChildren(el("p", { class: "empty" }, "왼쪽에서 위젯을 고르세요.")); return; }
@@ -96,15 +171,29 @@ function renderDetail() {
     ? el("div", { class: "sub" }, `이 PC에서는 '${w.effectiveMode}' 방식으로 대체 중`) : null;
 
   const settingKeys = Object.keys(w.schema || {});
+  const simpleKeys = settingKeys.filter((k) => !LIST_TYPES.includes(w.schema[k].type));
+  const listKeys = settingKeys.filter((k) => LIST_TYPES.includes(w.schema[k].type));
   box.replaceChildren(...[
-    el("div", { class: "title" }, el("h1", {}, w.name), el("span", { class: "ver" }, "v" + w.version)),
-    el("div", { class: "meta" }, w.id + " · " + w.folder),
+    el("div", { class: "title" }, el("h1", {}, w.name), switchInput(w.enabled, (on) => send({ type: "setEnabled", id: w.id, enabled: on }), w.enabled ? "켜짐" : "꺼짐")),
+    w.description ? el("p", { class: "desc" }, w.description) : null,
     w.error ? el("div", { class: "error" }, w.error) : null,
 
-    el("h3", {}, "창"),
+    // 목록 설정(날짜·바로가기 등)은 이 위젯의 핵심이라 맨 위에
+    ...listKeys.flatMap((k) => [
+      el("h3", {}, w.schema[k].label || k),
+      listEditor(w, k, w.schema[k]),
+      w.schema[k].hint ? el("p", { class: "hint" }, w.schema[k].hint) : null,
+    ]),
+
+    simpleKeys.length ? el("h3", {}, "설정") : null,
+    simpleKeys.length
+      ? el("div", { class: "grid" }, ...simpleKeys.flatMap((k) => [
+          el("label", { class: "lbl" }, w.schema[k].label || k), settingControl(w, k, w.schema[k])]))
+      : null,
+
+    el("h3", {}, "보기"),
     el("div", { class: "grid" },
-      el("label", {}, "켜기"), switchInput(w.enabled, (on) => send({ type: "setEnabled", id: w.id, enabled: on })),
-      el("label", { class: "lbl" }, "창 모드"),
+      el("label", { class: "lbl" }, "놓는 곳"),
       el("div", {},
         el("select", { onchange: (e) => prop("windowMode", e.target.value) },
           ...MODES.map(([v, t]) => el("option", { value: v, selected: v === w.windowMode }, t))),
@@ -118,21 +207,30 @@ function renderDetail() {
       el("label", { class: "lbl" }, "마우스 올리면 흐리게"), switchInput(w.hoverFade, (v) => prop("hoverFade", v)),
     ),
 
-    el("h3", {}, "설정"),
-    settingKeys.length
-      ? el("div", { class: "grid" }, ...settingKeys.flatMap((k) => [
-          el("label", { class: "lbl" }, w.schema[k].label || k), settingControl(w, k, w.schema[k])]))
-      : el("p", { class: "sub" }, "이 위젯은 설정이 없습니다."),
-
-    el("h3", {}, "정보"),
-    el("div", { class: "grid" },
-      el("span", { class: "lbl" }, "구독 데이터"), el("span", {}, w.subscribe.join(", ") || "없음"),
-      el("span", { class: "lbl" }, "권한"), el("span", {}, w.permissions.join(", ") || "없음 (외부 네트워크 차단)"),
-    ),
-    el("div", { class: "actions" },
-      el("button", { class: "ghost", onclick: () => send({ type: "openFolder", id: w.id }) }, "위젯 폴더 열기")),
+    // 만드는 사람용 정보는 접어 둔다
+    el("details", { class: "advanced" },
+      el("summary", {}, "자세히"),
+      el("div", { class: "grid" },
+        el("span", { class: "lbl" }, "버전"), el("span", {}, "v" + w.version),
+        el("span", { class: "lbl" }, "ID"), el("span", {}, w.id),
+        el("span", { class: "lbl" }, "받는 데이터"), el("span", {}, w.subscribe.join(", ") || "없음"),
+        el("span", { class: "lbl" }, "권한"), el("span", {}, PERMS(w.permissions)),
+      ),
+      el("div", { class: "actions" },
+        el("button", { class: "ghost small", onclick: () => send({ type: "openFolder", id: w.id }) }, "위젯 폴더 열기"))),
   ].filter((c) => c != null));
+
+  // 방금 추가한 줄에 커서
+  if (pendingFocus && pendingFocus.id === w.id) {
+    const target = box.querySelector("input[autofocus]");
+    if (target) { target.focus(); target.select?.(); }
+    pendingFocus = null;
+  }
 }
+
+const PERMS = (list) => list.length
+  ? list.map((p) => ({ network: "인터넷 사용", launch: "앱·파일 열기", notify: "Windows 알림" }[p] || p)).join(", ")
+  : "없음 (인터넷 차단)";
 
 // ---------- 오른쪽: 레이아웃 ----------
 function renderLayouts() {
@@ -160,6 +258,7 @@ function renderEnv() {
   // 사진 위젯 넘김 간격은 사진 위젯이 켜져 있을 때만
   $("#photosIntervalRow").hidden = !state.widgets.some((w) => w.enabled && w.subscribe.some((k) => k.startsWith("photos.")));
   const p = state.providers;
+  $("#locNow").textContent = `${p.locationName || "이름 없는 위치"} · ${Number(p.latitude).toFixed(2)}, ${Number(p.longitude).toFixed(2)}`;
   if (document.activeElement !== $("#photosFolder")) {
     $("#photosFolder").value = p.photosFolder || "";
     $("#photosFolder").placeholder = "기본: " + state.photosFolder;
@@ -187,6 +286,27 @@ $("#env").addEventListener("submit", (e) => {
   toast("환경 설정 적용");
 });
 $("#photosFolder").addEventListener("change", () => { sendProviders(); toast("사진 폴더를 바꿨습니다"); });
+
+// 도시 이름으로 위치 찾기 → 고르면 바로 적용
+$("#citySearch").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = $("#cityQuery").value.trim();
+  if (!q) return;
+  $("#cityResults").hidden = false;
+  $("#cityResults").replaceChildren(el("li", { class: "sub" }, "찾는 중…"));
+  send({ type: "searchCity", query: q });
+});
+function showCities(results) {
+  const ul = $("#cityResults");
+  ul.hidden = false;
+  if (!results || !results.length) { ul.replaceChildren(el("li", { class: "sub" }, "찾지 못했습니다. 다른 이름으로 해 보세요(인터넷 필요).")); return; }
+  ul.replaceChildren(...results.map((c) => el("li", { onclick: () => {
+    $("#locName").value = c.name; $("#lat").value = c.latitude; $("#lon").value = c.longitude;
+    sendProviders();
+    ul.hidden = true; $("#cityQuery").value = "";
+    toast(`위치를 '${c.name}'(으)로 바꿨습니다`);
+  } }, el("b", {}, c.name), el("span", { class: "sub" }, c.region))));
+}
 $("#pickFolder").addEventListener("click", () => send({ type: "pickPhotosFolder" }));
 
 // ---------- 오른쪽: 해 시간(골든아워 알림·색 자동 전환) ----------
@@ -320,6 +440,16 @@ if (wv) {
     const m = e.data;
     if (m.type === "state") { state = m.state; scheduleRender(); }
     else if (m.type === "error") toast(m.message, true);
+    else if (m.type === "picked") {
+      // 고른 앱·폴더를 바로가기 목록 끝에 붙인다
+      const w = state && state.widgets.find((x) => x.id === m.id);
+      if (!w) return;
+      const list = Array.isArray(w.settings[m.key]) ? w.settings[m.key] : [];
+      if (list.some((x) => x.target === m.item.target)) { toast("이미 있는 항목입니다"); return; }
+      send({ type: "setSetting", id: m.id, key: m.key, value: [...list, m.item] });
+      toast(`'${m.item.name}' 추가함`);
+    }
+    else if (m.type === "cities") showCities(m.results);
   });
   send({ type: "ready" });
 }
