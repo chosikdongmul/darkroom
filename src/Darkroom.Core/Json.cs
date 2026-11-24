@@ -36,6 +36,8 @@ public static class Log
 {
     static readonly object s_lock = new();
     static string? s_path;
+    static int s_writes;
+    const long MaxBytes = 1_000_000;
 
     public static void Init(string directory)
     {
@@ -43,7 +45,7 @@ public static class Log
         s_path = Path.Combine(directory, "darkroom.log");
         try
         {
-            if (File.Exists(s_path) && new FileInfo(s_path).Length > 1_000_000)
+            if (File.Exists(s_path) && new FileInfo(s_path).Length > MaxBytes)
                 File.Move(s_path, s_path + ".old", overwrite: true);
         }
         catch (IOException) { }
@@ -60,7 +62,13 @@ public static class Log
         if (s_path == null) return;
         lock (s_lock)
         {
-            try { File.AppendAllText(s_path, line); } catch (IOException) { }
+            try
+            {
+                // 켜 둔 채로 오래 써도 로그가 끝없이 커지지 않게: 가끔 크기를 보고 넘으면 .old로 넘긴다(최대 약 2MB)
+                if (++s_writes % 200 == 0 && new FileInfo(s_path).Length > MaxBytes) File.Move(s_path, s_path + ".old", overwrite: true);
+                File.AppendAllText(s_path, line);
+            }
+            catch (IOException) { }
         }
     }
 }

@@ -135,11 +135,11 @@ public sealed class CalDavClient
         var url = new Uri(cal.Id);
         var ranged = $"""<?xml version="1.0" encoding="utf-8"?><c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"><c:time-range start="{F(fromUtc)}" end="{F(toUtc)}"/></c:comp-filter></c:comp-filter></c:filter></c:calendar-query>""";
         var found = await TryQueryAsync(url, ranged, ct);
-        if (found is { Count: > 0 }) { Log.Info($"캘린더 '{cal.Name}': 기간 조회 {found.Count}개"); return found; }
+        if (found is { Count: > 0 }) { LogOnce(cal, $"캘린더 '{cal.Name}': 기간 조회로 받음"); return found; }
 
         const string all = """<?xml version="1.0" encoding="utf-8"?><c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"/></c:comp-filter></c:filter></c:calendar-query>""";
         found = await TryQueryAsync(url, all, ct);
-        if (found is { Count: > 0 }) { Log.Info($"캘린더 '{cal.Name}': 전체 조회 {found.Count}개"); return found; }
+        if (found is { Count: > 0 }) { LogOnce(cal, $"캘린더 '{cal.Name}': 전체 조회로 받음"); return found; }
 
         // 일정 파일 목록 → 묶어서 받기(multiget), 안 되면 하나씩
         const string listBody = """<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/><d:getcontenttype/><d:resourcetype/></d:prop></d:propfind>""";
@@ -151,7 +151,7 @@ public sealed class CalDavClient
             .Select(r => r.Element(D + "href")?.Value.Trim())
             .Where(h => !string.IsNullOrEmpty(h) && new Uri(url, h).AbsoluteUri.TrimEnd('/') != url.AbsoluteUri.TrimEnd('/'))
             .Select(h => h!).Distinct().ToList();
-        Log.Info($"캘린더 '{cal.Name}': 조회 결과 없음 → 일정 파일 {hrefs.Count}개를 직접 받음");
+        LogOnce(cal, $"캘린더 '{cal.Name}': 조회 결과 없음 → 일정 파일을 목록으로 받음");
         if (hrefs.Count == 0) return [];
         if (hrefs.Count > MaxFiles) hrefs = hrefs.TakeLast(MaxFiles).ToList();
 
@@ -168,8 +168,15 @@ public sealed class CalDavClient
                 if (text != null && text.Contains("BEGIN:VCALENDAR", StringComparison.Ordinal)) result.Add(text);
             }
         }
-        Log.Info($"캘린더 '{cal.Name}': 직접 받은 일정 파일 {result.Count}개");
         return result;
+    }
+
+    // 어떤 방식으로 받는지는 캘린더마다 한 번만 남긴다(15분마다 같은 줄이 쌓이지 않게)
+    static readonly HashSet<string> s_logged = new();
+    static void LogOnce(CalendarInfo cal, string message)
+    {
+        lock (s_logged) { if (!s_logged.Add(cal.Id + "|" + message)) return; }
+        Log.Info(message);
     }
 
     const int MaxFiles = 1500;
@@ -181,7 +188,7 @@ public sealed class CalDavClient
             var doc = await SendAsync("REPORT", url, body, 1, ct);
             return doc.Descendants(C + "calendar-data").Select(e => e.Value).Where(v => v.Contains("BEGIN:VCALENDAR", StringComparison.Ordinal)).ToList();
         }
-        catch (CalDavException ex) when (!ex.AuthFailed) { Log.Info($"캘린더 조회 방식 하나 실패: {ex.Message}"); return null; }
+        catch (CalDavException ex) when (!ex.AuthFailed) { return null; } // 지원하지 않는 방식 → 다음 방식으로
     }
 
     async Task<string?> TryGetAsync(Uri url, CancellationToken ct)
