@@ -63,6 +63,8 @@ public sealed class WallpaperSettings
     public string? OriginalPath { get; set; }
     public int? OriginalPosition { get; set; }
     public DateTimeOffset? LastChangedAt { get; set; }
+    /// <summary>마지막으로 지정한 사진(전체 경로). 레지스트리 WallPaper 값은 IDesktopWallpaper로 바꾸면 갱신되지 않아 따로 기억한다.</summary>
+    public string? CurrentPath { get; set; }
 
     public const int MinInterval = 1, MaxInterval = 1440;
     public static readonly string[] Fits = ["fill", "fit", "center", "stretch"];

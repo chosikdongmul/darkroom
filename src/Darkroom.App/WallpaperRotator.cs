@@ -41,7 +41,7 @@ internal sealed class WallpaperRotator : IDisposable
     static readonly Dictionary<string, int> Positions = new() { ["center"] = 0, ["stretch"] = 2, ["fit"] = 3, ["fill"] = 4 };
 
     readonly AppController _app;
-    readonly DispatcherTimer _timer;
+    readonly DispatcherTimer _timer, _watch;
     List<string> _order = new();
     int _index = -1;
     string? _folder;
@@ -56,6 +56,8 @@ internal sealed class WallpaperRotator : IDisposable
         _app = app;
         _timer = new DispatcherTimer(DispatcherPriority.Background, dispatcher);
         _timer.Tick += (_, _) => Next();
+        // 1분마다: 배경이 비어 버린 화면이 있으면 지금 사진을 다시 지정(원격 접속의 가상 모니터 등)
+        _watch = new DispatcherTimer(TimeSpan.FromMinutes(1), DispatcherPriority.Background, (_, _) => EnsureShown(), dispatcher) { IsEnabled = false };
     }
 
     WallpaperSettings S => _app.State.Wallpaper;
@@ -69,9 +71,11 @@ internal sealed class WallpaperRotator : IDisposable
         if (!s.Enabled)
         {
             _timer.Stop();
+            _watch.Stop();
             Restore();
             return;
         }
+        _watch.Start();
         try
         {
             var api = Api();
@@ -81,22 +85,64 @@ internal sealed class WallpaperRotator : IDisposable
                 s.OriginalPosition = api.GetPosition();
                 Log.Info($"배경화면 바꾸기 켬. 원래 배경화면 기억: {s.OriginalPath} (위치 {s.OriginalPosition})");
             }
-            api.SetPosition(Positions.GetValueOrDefault(s.Fit, 4));
+            // 맞춤 방식은 다를 때만 바꾼다. SetPosition은 배경을 다시 그리게 해서, 사진이 지정되지 않은 화면이 있으면 검게 된다.
+            int want = Positions.GetValueOrDefault(s.Fit, 4);
+            if (api.GetPosition() != want) api.SetPosition(want);
         }
         catch (COMException ex) { LastError = ex.Message; Log.Error("배경화면 API 실패", ex); return; }
 
         // 바로 바꾸지 않을 때도 후보 수·지금 사진 이름은 보이게(재시작 직후 "후보 0장"으로 보이지 않도록)
         if (_folder != _app.PhotosFolder) Scan(_app.PhotosFolder);
-        if (CurrentName == null)
+        if (CurrentName == null || s.CurrentPath == null)
         {
-            try { var now = Api().GetWallpaper(null); if (!string.IsNullOrEmpty(now)) CurrentName = Path.GetFileName(now); }
-            catch (COMException) { }
+            try
+            {
+                var now = Api().GetWallpaper(null);
+                if (!string.IsNullOrEmpty(now))
+                {
+                    CurrentName ??= Path.GetFileName(now);
+                    if (s.CurrentPath == null && File.Exists(now)) s.CurrentPath = now; // 이전 버전에서 넘어온 경우
+                }
+            }
+            catch (COMException) { } // 화면마다 사진이 다르면 실패할 수 있다
         }
 
         var interval = TimeSpan.FromMinutes(s.IntervalMinutes);
         var since = DateTimeOffset.Now - (s.LastChangedAt ?? DateTimeOffset.MinValue);
         if (changeNow || since >= interval) Next();
-        else Schedule(interval - since);
+        else { Schedule(interval - since); EnsureShown(); }
+    }
+
+    /// <summary>
+    /// 켜져 있는 화면 중 배경 사진이 비었거나 파일이 없는 화면이 있으면 지금 사진을 모든 화면에 다시 지정한다.
+    /// (원격 접속 등으로 새 모니터가 생기면 그 화면에는 사진이 없어 검게 보일 수 있다) 시작할 때·화면 구성이 바뀔 때·1분마다.
+    /// </summary>
+    public void EnsureShown()
+    {
+        var s = S;
+        if (!s.Enabled || s.CurrentPath is not { Length: > 0 } path || !File.Exists(path)) return;
+        try
+        {
+            var api = Api();
+            for (uint i = 0; i < api.GetMonitorDevicePathCount(); i++)
+            {
+                var id = api.GetMonitorDevicePathAt(i);
+                string? w;
+                try
+                {
+                    api.GetMonitorRECT(id, out var r);
+                    if (r.Right - r.Left <= 0 || r.Bottom - r.Top <= 0) continue;
+                    w = api.GetWallpaper(id);
+                }
+                catch (COMException) { continue; } // 꺼진·분리된 화면(원격 접속 중인 노트북 화면 등)은 E_FAIL
+                if (!string.IsNullOrEmpty(w) && File.Exists(w)) continue;
+                api.SetWallpaper(null, path);
+                Log.Info($"배경 사진이 비어 있는 화면이 있어 다시 지정: {Path.GetFileName(path)}");
+                _app.KickProvider("wallpaper");
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is COMException or ArgumentException) { Log.Warn($"배경화면 확인 실패: {ex.Message}"); }
     }
 
     void Schedule(TimeSpan due)
@@ -124,6 +170,7 @@ internal sealed class WallpaperRotator : IDisposable
             {
                 Api().SetWallpaper(null, path);
                 CurrentName = Path.GetFileName(path);
+                s.CurrentPath = path;
                 LastError = null;
                 s.LastChangedAt = DateTimeOffset.Now;
                 Log.Info($"배경화면 → {path}");
@@ -171,9 +218,10 @@ internal sealed class WallpaperRotator : IDisposable
         s.OriginalPath = null;
         s.OriginalPosition = null;
         s.LastChangedAt = null;
+        s.CurrentPath = null;
         CurrentName = null;
         _app.SaveStateSoon();
     }
 
-    public void Dispose() => _timer.Stop();
+    public void Dispose() { _timer.Stop(); _watch.Stop(); }
 }

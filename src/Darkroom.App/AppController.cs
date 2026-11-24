@@ -117,7 +117,7 @@ internal sealed partial class AppController : IDisposable
         var envOptions = new CoreWebView2EnvironmentOptions(args.Length == 0 ? null : args);
         Env = await CoreWebView2Environment.CreateAsync(null, AppPaths.WebViewData, envOptions);
         Log.Info($"WebView2 런타임 {Env.BrowserVersionString}");
-        _providers = new ProviderHost(Bus, [.. BuiltInProviders.Create(() => State.Providers), new WallpaperProvider(), CreateCalendarProvider()]);
+        _providers = new ProviderHost(Bus, [.. BuiltInProviders.Create(() => State.Providers), new WallpaperProvider(() => State.Wallpaper.Enabled ? State.Wallpaper.CurrentPath : null), CreateCalendarProvider()]);
 
         foreach (var id in State.Widgets.Where(kv => kv.Value.Enabled).Select(kv => kv.Key).ToList())
         {
@@ -407,6 +407,7 @@ internal sealed partial class AppController : IDisposable
             w.UpdateScaleFromPosition();
             w.EnsureOnScreen();
         }
+        _wallpaper?.EnsureShown(); // 새로 생긴 화면에 배경 사진이 없으면 다시 지정
     }
 
     // =========================================================== 테마·전체 옵션

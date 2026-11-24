@@ -3,7 +3,7 @@
     "tokens":  {
                    "bg":  "rgba(24,23,21,0.78)",
                    "fg":  "#eee8dc",
-                   "muted":  "rgba(238,232,220,0.52)",
+                   "muted":  "rgba(238,232,220,0.58)",
                    "faint":  "rgba(238,232,220,0.13)",
                    "accent":  "#d8c6a2",
                    "inset":  "rgba(0,0,0,0.30)",

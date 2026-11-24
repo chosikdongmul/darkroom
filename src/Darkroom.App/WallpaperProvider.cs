@@ -10,16 +10,18 @@ namespace Darkroom.App;
 ///   wallpaper.current   = { name, exif: { camera, lens, focalLength, aperture, shutter, iso, takenAt }, width, height } 또는 null
 ///   wallpaper.histogram = photos.histogram과 같은 형태 { bins, r, g, b, l, shadowsClipped, highlightsClipped, meanLuminance }
 /// </summary>
-internal sealed class WallpaperProvider : IDataProvider
+internal sealed class WallpaperProvider(Func<string?> current) : IDataProvider
 {
     string? _key;
 
     public string Namespace => "wallpaper";
     public TimeSpan Interval => TimeSpan.FromSeconds(5);
 
-    /// <summary>배경화면 원본 경로. 없으면 Windows가 화면에 쓰는 변환본(TranscodedWallpaper).</summary>
-    static (string? path, string name) Current()
+    /// <summary>배경화면 원본 경로. Darkroom이 지정한 사진이 우선(레지스트리 값은 IDesktopWallpaper로 바꾸면 갱신되지 않는다).
+    /// 없으면 레지스트리, 그것도 없으면 Windows가 화면에 쓰는 변환본(TranscodedWallpaper).</summary>
+    (string? path, string name) Current()
     {
+        if (current() is { Length: > 0 } mine && File.Exists(mine)) return (mine, Path.GetFileName(mine));
         var reg = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "WallPaper", null) as string;
         if (!string.IsNullOrWhiteSpace(reg) && File.Exists(reg)) return (reg, Path.GetFileName(reg));
         var transcoded = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Windows", "Themes", "TranscodedWallpaper");

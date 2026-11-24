@@ -9,7 +9,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
   display: flex; flex-direction: column; gap: 8px;
 }
 .label { font-size: 13px; font-weight: 600; color: var(--dr-fg, #f5f5f7); }
-.num { font-family: var(--dr-font-num, var(--dr-font-ui, sans-serif)); font-weight: var(--dr-num-weight, inherit); font-variation-settings: var(--dr-num-variation, normal); font-variant-numeric: tabular-nums lining-nums; }
+/* 작은 숫자(표·목록·%)는 본문 글꼴로: 글꼴 조합의 숫자 글꼴은 큰 표시용이라 작게 쓰면 글자가 붙어 보인다 */
+.num { font-family: var(--dr-font-ui, sans-serif); font-variant-numeric: tabular-nums lining-nums; letter-spacing: 0; }
 .muted { color: var(--dr-muted, rgba(235, 235, 245, .56)); }
 .accent { color: var(--dr-accent, #ff9f45); }
 .bar { flex: none; height: 4px; border-radius: 2px; background: var(--dr-faint, rgba(235, 235, 245, .14)); overflow: hidden; }

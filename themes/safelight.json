@@ -1,9 +1,9 @@
 {
     "name":  "Safelight Red",
     "tokens":  {
-                   "bg":  "rgba(20,8,8,0.80)",
+                   "bg":  "rgba(20,8,8,0.84)",
                    "fg":  "#ff6b55",
-                   "muted":  "rgba(255,107,85,0.55)",
+                   "muted":  "rgba(255,107,85,0.83)",
                    "faint":  "rgba(255,107,85,0.16)",
                    "accent":  "#ffb199",
                    "inset":  "rgba(0,0,0,0.30)",
