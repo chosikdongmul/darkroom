@@ -109,8 +109,12 @@ internal sealed partial class AppController : IDisposable
         _phase = CurrentPhase(); // 위젯을 열기 전에 정해 둬야 처음부터 맞는 색으로 뜬다
 
         // DARKROOM_WEBVIEW2_ARGS: 추가 브라우저 인자(디버깅용)
+        // --process-per-site: 같은 사이트(w.darkroom)의 위젯들이 렌더러 프로세스 하나를 함께 쓴다(위젯 7개 기준 약 130MB 절약).
+        // DARKROOM_PROCESS_PER_WIDGET=1이면 위젯마다 따로 둔다(비교·문제 확인용).
         var extraArgs = Environment.GetEnvironmentVariable("DARKROOM_WEBVIEW2_ARGS");
-        var envOptions = new CoreWebView2EnvironmentOptions(string.IsNullOrWhiteSpace(extraArgs) ? null : extraArgs);
+        var shared = Environment.GetEnvironmentVariable("DARKROOM_PROCESS_PER_WIDGET") == "1" ? "" : "--process-per-site";
+        var args = string.Join(' ', new[] { shared, extraArgs }.Where(a => !string.IsNullOrWhiteSpace(a)));
+        var envOptions = new CoreWebView2EnvironmentOptions(args.Length == 0 ? null : args);
         Env = await CoreWebView2Environment.CreateAsync(null, AppPaths.WebViewData, envOptions);
         Log.Info($"WebView2 런타임 {Env.BrowserVersionString}");
         _providers = new ProviderHost(Bus, [.. BuiltInProviders.Create(() => State.Providers), new WallpaperProvider(), CreateCalendarProvider()]);

@@ -80,8 +80,12 @@ public sealed partial class WidgetManifest
     public Dictionary<string, SettingSpec> Settings { get; set; } = new();
 
     [JsonIgnore] public string Folder { get; private set; } = "";
-    /// <summary>가상 호스트 이름. 위젯 폴더가 https://{HostName}/ 에 매핑된다.</summary>
-    [JsonIgnore] public string HostName => Id + ".darkroom";
+    /// <summary>
+    /// 가상 호스트 이름. 위젯 폴더가 https://{HostName}/ 에 매핑된다. 모든 위젯이 같은 사이트(w.darkroom) 아래에 있어
+    /// 웹 엔진이 위젯들을 렌더러 프로세스 하나에 모을 수 있다(--process-per-site). 출처(origin)는 위젯마다 달라 저장소는 따로다.
+    /// </summary>
+    [JsonIgnore] public string HostName => Id + "." + SiteHost;
+    public const string SiteHost = "w.darkroom";
 
     public const string FileName = "widget.json";
     static readonly string[] KnownSettingTypes = ["bool", "number", "string", "choice", "dates", "links", "numbers"];

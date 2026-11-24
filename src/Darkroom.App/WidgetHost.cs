@@ -18,6 +18,7 @@ internal sealed class WidgetHost : IDisposable
     string? _scriptId;
     bool _closed;
     string? _photosMappedTo;   // photos.darkroom에 매핑한 폴더 (photos를 구독하는 위젯만)
+    readonly List<DateTime> _crashes = new(); // 렌더러가 멈춘 시각(자동 복구 횟수 제한)
 
     public WidgetManifest Manifest { get; private set; }
     public WidgetWindow? Window => _win;
@@ -117,8 +118,20 @@ internal sealed class WidgetHost : IDisposable
         core.ProcessFailed += (_, e) =>
         {
             Log.Warn($"[{Manifest.Id}] WebView2 프로세스 실패: {e.ProcessFailedKind} {e.Reason}");
-            if (e.ProcessFailedKind is CoreWebView2ProcessFailedKind.RenderProcessExited or CoreWebView2ProcessFailedKind.RenderProcessUnresponsive)
-                ShowError("위젯이 응답하지 않아 멈췄습니다. 파일을 저장하면 다시 불러옵니다.");
+            if (e.ProcessFailedKind is not (CoreWebView2ProcessFailedKind.RenderProcessExited or CoreWebView2ProcessFailedKind.RenderProcessUnresponsive)) return;
+            // 위젯들이 렌더러 하나를 함께 쓰므로 하나가 죽으면 다 같이 멈춘다 → 잠시 뒤 스스로 다시 띄운다.
+            // 10분 안에 3번 넘게 반복되면(위젯 코드 문제 등) 멈추고 오류 카드를 보여 준다.
+            var now = DateTime.UtcNow;
+            _crashes.RemoveAll(t => now - t > TimeSpan.FromMinutes(10));
+            _crashes.Add(now);
+            if (_crashes.Count > 3) { ShowError("위젯이 계속 멈춥니다. 위젯을 껐다 켜거나 앱을 다시 시작해 주세요."); return; }
+            _ = Task.Delay(TimeSpan.FromSeconds(2)).ContinueWith(_ => _app.Dispatcher.BeginInvoke(() =>
+            {
+                if (_closed || _ctl == null) return;
+                Log.Info($"[{Manifest.Id}] 렌더러가 멈춰 다시 불러옴");
+                try { if (e.ProcessFailedKind == CoreWebView2ProcessFailedKind.RenderProcessUnresponsive) _ctl.CoreWebView2.Reload(); else Navigate(); }
+                catch (Exception ex) when (ex is COMException or InvalidOperationException) { ShowError("위젯을 다시 불러오지 못했습니다."); }
+            }));
         };
 
         foreach (var key in Manifest.Subscribe) SubscribeKey(key);

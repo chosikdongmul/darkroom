@@ -105,7 +105,7 @@ public class ManifestTests : IDisposable
                         "style": { "type": "choice", "options": ["a", "b"] },
                         "size": { "type": "number", "default": 2, "min": 1, "max": 5 } } }
         """);
-        Assert.Equal("darkroom.clock.darkroom", m.HostName);
+        Assert.Equal("darkroom.clock.w.darkroom", m.HostName);
         var saved = new Dictionary<string, JsonElement>
         {
             ["format24h"] = DrJson.ToElement(false),
