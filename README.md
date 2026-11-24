@@ -71,7 +71,7 @@ dotnet test tests/Darkroom.Core.Tests
 }
 ```
 
-- `size`: 내장 위젯은 폭 360, `inset` 12(그림자용 투명 여백)로 맞춰 쌓았을 때 가장자리가 나란하다.
+- `size`: 내장 위젯은 폭 360, `inset` 12(창 안쪽의 투명 여백, 카드는 이만큼 안쪽에 그린다)로 맞춰 나란히 놓았을 때 카드 가장자리가 맞는다. 카드에 그림자는 넣지 않는다.
 - `windowMode`: `desktop` · `bottom` · `normal` · `topmost`
 - `subscribe`: 받을 데이터 키. `system.*`처럼 네임스페이스 단위도 된다.
 - `permissions`: `network`가 없으면 외부 요청(fetch, WebSocket, WebRTC)이 막힌다. `launch`가 없으면 `open` Action으로 프로그램을 열 수 없다. `notify`가 있으면 `notify` Action으로 Windows 알림을 띄울 수 있다. `calendar`가 있어야 `calendar.*`를 받는다.

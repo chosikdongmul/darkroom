@@ -60,8 +60,11 @@ internal sealed class WidgetWindow : IDisposable
     public bool IsAlive => !_disposing && IsWindow(Hwnd);
 
     // ---------- 창 영역(region) ----------
-    /// <summary>카드 바깥으로 남겨 두는 그림자 여백(DIP). 테마 그림자는 이 안에 들어오게 만든다. 스냅 간격도 이 값.</summary>
+    /// <summary>이웃 카드와 붙일 때의 간격(DIP).</summary>
     public const int ShadowMarginDip = 10;
+    /// <summary>창 영역을 카드보다 이만큼만 크게 둔다(DIP). 카드 모서리의 부드러운 가장자리가 잘리지 않을 정도.
+    /// 예전에는 그림자 자리로 10을 두었는데, 그 테두리가 위젯마다 다르게 보여 줄 맞추기가 어려워 없앴다.</summary>
+    const int EdgeMarginDip = 1;
     double _cornerDip = 18;
 
     /// <summary>테마의 카드 모서리 반경(DIP). 창 영역의 둥근 모서리에 쓴다.</summary>
@@ -80,8 +83,8 @@ internal sealed class WidgetWindow : IDisposable
     {
         if (Mode != WindowModes.Desktop) return;
         GetClientRect(Hwnd, out var rc);
-        int m = Px(Math.Max(0, _insetDip - ShadowMarginDip));
-        int d = (int)Math.Round((_cornerDip + ShadowMarginDip) * Scale * 2);
+        int m = Px(Math.Max(0, _insetDip - EdgeMarginDip));
+        int d = (int)Math.Round((_cornerDip + EdgeMarginDip) * Scale * 2);
         var rgn = CreateRoundRectRgn(m, m, rc.W - m + 1, rc.H - m + 1, d, d);
         if (SetWindowRgn(Hwnd, rgn, true) == 0) DeleteObject(rgn); // 성공하면 시스템이 region을 소유
     }

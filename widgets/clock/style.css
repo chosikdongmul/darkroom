@@ -6,7 +6,7 @@
   --dr-faint: rgba(235, 235, 245, 0.14);
   --dr-accent: #ff9f45;
   --dr-radius: 22px;
-  --dr-shadow: 0 2px 8px rgba(0, 0, 0, .28);
+  --dr-shadow: none;
   --dr-font-ui: "Pretendard Variable", Pretendard, "Darkroom Sans", "Segoe UI", sans-serif;
   --dr-font-num: "Pretendard Variable", Pretendard, "Darkroom Sans", "Segoe UI", sans-serif;
 }
@@ -16,7 +16,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
 
 .card {
   position: absolute;
-  inset: 14px; /* widget.json size.inset: 그림자용 투명 여백 */
+  inset: 12px; /* widget.json size.inset과 같아야 다른 위젯과 가장자리가 맞는다 */
   box-sizing: border-box;
   padding: 16px 20px 16px 22px;
   border-radius: var(--dr-radius);

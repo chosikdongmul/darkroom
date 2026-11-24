@@ -11,7 +11,7 @@
                    "gold":  "#e2c158",
                    "blue":  "#8fb3c9",
                    "radius":  "18px",
-                   "shadow":  "0 2px 8px rgba(0,16,8,.34)",
+                   "shadow":  "none",
                    "fontUi":  "\u0027Pretendard Variable\u0027, Pretendard, \u0027Darkroom Sans\u0027, \u0027Segoe UI\u0027, sans-serif",
                    "fontNum":  "\u0027Pretendard Variable\u0027, Pretendard, \u0027Darkroom Sans\u0027, \u0027Segoe UI\u0027, sans-serif"
                }
