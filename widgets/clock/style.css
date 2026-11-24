@@ -48,13 +48,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
 .decor { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .exp { display: flex; flex-direction: column; gap: 3px; white-space: nowrap; }
 #exp { font-family: var(--dr-font-num); font-size: calc(14px * var(--dr-num-scale, 1)); font-weight: var(--dr-num-weight, 600); font-style: var(--dr-num-style, normal); }
-#exp.none { color: var(--dr-muted); } /* 배경화면에 EXIF가 없을 때: "f/– · – · ISO –"를 흐리게 */
 #ev { font-size: 11.5px; font-weight: 500; }
 
-/* 노출 변화 미터: 가는 선 위의 점. 가운데(0)에서 왼쪽 = 30분 뒤 어두워짐 */
+/* EV 눈금: 왼쪽 어두움(EV 2) → 오른쪽 밝음(EV 17), 점 = 지금 사진의 노출 */
 .meter { position: relative; width: 72px; height: 14px; flex: none; margin-bottom: 2px; }
-.track { position: absolute; left: 0; right: 0; top: 6px; height: 2px; border-radius: 1px; background: var(--dr-faint); }
-.mid { position: absolute; left: 50%; top: 3px; width: 1px; height: 8px; margin-left: -0.5px; background: var(--dr-muted); }
+.track { position: absolute; left: 0; right: 0; top: 6px; height: 2px; border-radius: 1px; background: linear-gradient(90deg, var(--dr-faint), var(--dr-gold, var(--dr-accent))); }
+.ticks { position: absolute; left: 0; right: 0; top: 3px; height: 8px;
+  background: repeating-linear-gradient(90deg, var(--dr-muted) 0 1px, transparent 1px calc(100% / 5)); opacity: .45; }
 .dot {
   position: absolute; left: 0; right: 0; top: 2px; height: 10px;
   transform: translateX(50%); /* 값이 바뀔 때만 움직임(애니메이션 없음) */

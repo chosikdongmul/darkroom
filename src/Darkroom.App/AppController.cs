@@ -358,16 +358,16 @@ internal sealed class AppController : IDisposable
     void OnDisplayChanged()
     {
         _displayTimer.Stop();
+        // 저장된 위치로 되돌린 뒤, 화면 밖이면 가장 가까운 가장자리로 당긴다. 당긴 위치는 저장하지 않아서
+        // 원래 화면(예: 원격 접속을 끝낸 노트북 화면)으로 돌아오면 원래 자리로 간다.
         foreach (var h in _open.Values)
         {
             if (h.Window is not { IsAlive: true } w) continue;
-            w.EnsureOnScreen();
-            w.UpdateScaleFromPosition();
-            var r = w.ScreenRect;
             var st = StateOf(h.Manifest.Id);
-            st.X = r.Left; st.Y = r.Top;
+            if (st.X is int x && st.Y is int y) w.MoveTo(x, y);
+            w.UpdateScaleFromPosition();
+            w.EnsureOnScreen();
         }
-        SaveStateSoon();
     }
 
     // =========================================================== 테마·전체 옵션

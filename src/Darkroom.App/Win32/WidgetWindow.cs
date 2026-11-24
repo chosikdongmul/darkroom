@@ -202,7 +202,8 @@ internal sealed class WidgetWindow : IDisposable
         return true;
     }
 
-    /// <summary>카드가 어느 모니터 작업 영역에도 40px 이상 걸쳐 있지 않으면 주 모니터 안으로 옮긴다.</summary>
+    /// <summary>카드가 어느 모니터 작업 영역에도 40px 이상 걸쳐 있지 않으면 가장 가까운 모니터 안쪽 가장자리로 당긴다
+    /// (여러 위젯이 한곳에 겹치지 않고 배치가 유지되게).</summary>
     public bool EnsureOnScreen()
     {
         var card = CardRect;
@@ -212,10 +213,13 @@ internal sealed class WidgetWindow : IDisposable
             int iy = Math.Min(card.Bottom, a.Bottom) - Math.Max(card.Top, a.Top);
             if (ix >= 40 && iy >= 40) return false;
         }
-        var p = PrimaryWorkArea();
-        MoveTo(p.Left + 40, p.Top + 40);
+        var wa = MonitorInfo(MonitorFromRect(ref card, MONITOR_DEFAULTTONEAREST)).rcWork;
+        int left = Math.Max(wa.Left, Math.Min(card.Left, wa.Right - card.W));
+        int top = Math.Max(wa.Top, Math.Min(card.Top, wa.Bottom - card.H));
+        int inset = Px(_insetDip);
+        MoveTo(left - inset, top - inset);
         UpdateScaleFromPosition();
-        Log.Info($"화면 밖 위젯을 주 모니터로 이동: {Hwnd:X}");
+        Log.Info($"화면 밖 위젯을 화면 안으로 당김: {Hwnd:X}");
         return true;
     }
 

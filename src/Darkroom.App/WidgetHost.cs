@@ -37,7 +37,7 @@ internal sealed class WidgetHost : IDisposable
             SnapTargets = () => _app.SnapTargetsExcept(this),
         };
         _win.SetCornerRadius(_app.ThemeCornerRadiusDip());
-        if (_win.EnsureOnScreen()) SavePosition();
+        _win.EnsureOnScreen(); // 화면 밖이면 안으로 당기되, 저장된 위치는 그대로 둔다(원래 화면으로 돌아오면 복귀)
         _win.MoveFinished += () => { SavePosition(); };
         _win.Resized += UpdateBounds;
         _win.ScaleChanged += () => { if (_ctl != null) _ctl.RasterizationScale = _win.Scale; UpdateBounds(); };
