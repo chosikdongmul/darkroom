@@ -118,7 +118,12 @@ internal sealed partial class AppController : IDisposable
         foreach (var id in State.Widgets.Where(kv => kv.Value.Enabled).Select(kv => kv.Key).ToList())
         {
             if (Installed.ContainsKey(id)) await OpenWidgetAsync(id);
-            else Log.Warn($"켜진 위젯 '{id}'이(가) 설치돼 있지 않음");
+            else
+            {
+                // 지워진 위젯(업데이트로 빠진 내장 위젯 등): 꺼 둔다. 같은 id의 위젯을 다시 넣으면 Manager에서 켤 수 있다.
+                Log.Warn($"켜진 위젯 '{id}'이(가) 설치돼 있지 않아 끔");
+                State.Widgets[id].Enabled = false;
+            }
         }
 
         _shell = new ShellEvents();
@@ -130,6 +135,7 @@ internal sealed partial class AppController : IDisposable
         _wallpaper.Apply();
         StartUpdateChecks();
         StartSunTimer();
+        StartMemoryLog();
         SaveStateSoon();
         Changed?.Invoke();
     }
@@ -444,6 +450,20 @@ internal sealed partial class AppController : IDisposable
         ["goldenHour"] = "warm-negative", ["blueHour"] = "blue-hour", ["night"] = "safelight",
     };
     string _phase = "day";
+    DispatcherTimer? _memTimer;
+
+    /// <summary>1분 뒤, 그다음 30분마다 메모리 사용량을 로그에 남긴다(오래 켜 둘 때 새는지 보려고).</summary>
+    void StartMemoryLog()
+    {
+        _memTimer = new DispatcherTimer(TimeSpan.FromMinutes(1), DispatcherPriority.Background, (_, _) =>
+        {
+            _memTimer!.Interval = TimeSpan.FromMinutes(30);
+            var gc = GC.GetGCMemoryInfo();
+            using var p = Process.GetCurrentProcess();
+            Log.Info($"메모리: 전용 {p.PrivateMemorySize64 >> 20}MB, 관리 힙 {GC.GetTotalMemory(false) >> 20}MB(커밋 {gc.TotalCommittedBytes >> 20}MB, 조각 {gc.FragmentedBytes >> 20}MB), 위젯 {_open.Count}개");
+        }, Dispatcher);
+    }
+
     DispatcherTimer? _sunTimer;
     readonly HashSet<string> _alerted = new();
     /// <summary>(제목, 내용) 알림 → 트레이가 Windows 알림으로 띄운다.</summary>

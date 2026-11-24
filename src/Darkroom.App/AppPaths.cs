@@ -60,12 +60,10 @@ internal sealed class AppPaths
     /// </summary>
     static string? ExtractEmbeddedContent()
     {
+        // 리소스는 exe에 매핑된 메모리라 복사하지 않고 그대로 읽는다(24MB짜리 묶음을 시작할 때마다 두 번 복사하지 않게)
         using var res = typeof(AppPaths).Assembly.GetManifestResourceStream(ContentResource);
         if (res == null) return null;
-        using var ms = new MemoryStream();
-        res.CopyTo(ms);
-        var bytes = ms.ToArray();
-        var stamp = Convert.ToHexString(SHA256.HashData(bytes))[..16];
+        var stamp = Convert.ToHexString(SHA256.HashData(res))[..16];
 
         var target = ContentFolder;
         var stampFile = Path.Combine(target, ".content-version");
@@ -73,7 +71,8 @@ internal sealed class AppPaths
 
         Directory.CreateDirectory(target);
         var root = Path.GetFullPath(target) + Path.DirectorySeparatorChar;
-        using (var zip = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read))
+        res.Position = 0;
+        using (var zip = new ZipArchive(res, ZipArchiveMode.Read, leaveOpen: true))
         {
             foreach (var entry in zip.Entries)
             {
@@ -84,18 +83,19 @@ internal sealed class AppPaths
                 entry.ExtractToFile(dest, overwrite: true);
             }
         }
-        RemoveDroppedWidgets(target, bytes);
+        res.Position = 0;
+        RemoveDroppedWidgets(target, res);
         File.WriteAllText(stampFile, stamp);
         Log.Info($"내장 콘텐츠를 풀었습니다: {target} ({stamp})");
         return target;
     }
 
     /// <summary>이전 버전에 들어 있다가 빠진 내장 위젯 폴더를 지운다. 사용자가 직접 넣은 위젯 폴더는 건드리지 않는다.</summary>
-    static void RemoveDroppedWidgets(string target, byte[] zipBytes)
+    static void RemoveDroppedWidgets(string target, Stream zipStream)
     {
         var listFile = Path.Combine(target, ".bundled-widgets");
         HashSet<string> current;
-        using (var zip = new ZipArchive(new MemoryStream(zipBytes), ZipArchiveMode.Read))
+        using (var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true))
             current = zip.Entries.Select(e => e.FullName.Replace('\\', '/').Split('/'))
                 .Where(p => p.Length > 2 && p[0] == "widgets").Select(p => p[1]).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var previous = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "naver-map" }; // 0.9.0에만 있던 위젯(목록 파일이 생기기 전)
