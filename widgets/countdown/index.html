@@ -27,6 +27,8 @@
   .row { display: flex; gap: 10px; font-size: 12px; }
   .row b { font-family: var(--dr-font-num, sans-serif); font-weight: var(--dr-num-weight, 600); font-variant-numeric: tabular-nums lining-nums; min-width: 52px; }
   .row span:last-child { margin-left: auto; }
+  .row .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .n i, .name i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; background: var(--dr-muted, rgba(235, 235, 245, .56)); }
   .empty { font-size: 13px; line-height: 1.5; }
 </style>
 </head>
@@ -38,12 +40,13 @@
     <div class="what"><div class="name" id="name"></div><div class="date muted" id="date"></div></div>
   </div>
   <div class="rest" id="rest"></div>
-  <div class="empty muted" id="empty" hidden>트레이 아이콘 → Manager → 디데이에서<br>"+ 날짜 추가"를 눌러 날짜를 넣어 주세요.</div>
+  <div class="empty muted" id="empty" hidden>트레이 아이콘 → Manager → 디데이에서<br>"+ 날짜 추가"를 누르거나, 캘린더를 연결하세요.</div>
 </main>
 <script>
   const $ = (id) => document.getElementById(id);
   const DAY = 864e5, DOW = "일월화수목금토";
   let lastKey = "";
+  let cal = null; // calendar.events
 
   // 설정 [{ date: "2026-12-25", name, yearly, pinned }] → [{ name, date, pinned }]
   // 매년: 올해 날짜가 지났으면 내년. 지난 날(매년 아님)은 ★일 때만 남긴다(D+N으로 셈).
@@ -63,17 +66,36 @@
     return out.sort((a, b) => a.date - b.date);
   }
 
+  // 캘린더 일정 → 같은 모양. 하루 종일 일정만 / 모든 일정. 오늘 이후 시작하는 것만.
+  function calendarEvents(today, mode) {
+    if (!cal || !cal.connected || mode === "off" || !Array.isArray(cal.events)) return [];
+    const out = [];
+    for (const e of cal.events) {
+      if (mode === "allday" && !e.allDay) continue;
+      const m = String(e.start || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) continue;
+      const date = new Date(+m[1], +m[2] - 1, +m[3]);
+      if (date < today) continue;
+      out.push({ name: e.title || "(제목 없음)", date, pinned: false, color: e.color || "", fromCal: true });
+    }
+    return out;
+  }
+
   const label = (days) => (days === 0 ? "D-DAY" : days > 0 ? `D-${days}` : `D+${-days}`);
 
   function render(nowMs) {
     const now = new Date(nowMs);
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const s = darkroom.settings;
-    const key = `${today.toDateString()}|${JSON.stringify(s.events)}|${s.countToday}`;
+    const key = `${today.toDateString()}|${JSON.stringify(s.events)}|${s.countToday}|${s.calendar}|${cal ? cal.updatedAt + cal.connected : ""}`;
     if (key === lastKey) return;
     lastKey = key;
 
-    const events = parseEvents(s.events, today);
+    const mine = parseEvents(s.events, today);
+    // 내가 넣은 날과 같은 날·같은 이름인 캘린더 일정은 빼고 합친다
+    const seen = new Set(mine.map((e) => e.date.toDateString() + "|" + e.name));
+    const events = [...mine, ...calendarEvents(today, s.calendar).filter((e) => !seen.has(e.date.toDateString() + "|" + e.name))]
+      .sort((a, b) => a.date - b.date);
     // 남은 날(+) / 지난 날(−). "당일을 1일째로": 지난 날은 D+1부터, 다가올 날은 하루 더.
     const days = (e) => { const d = Math.round((e.date - today) / DAY); return s.countToday ? (d > 0 ? d + 1 : d < 0 ? d - 1 : d) : d; };
     const fmt = (d) => `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
@@ -87,22 +109,26 @@
     const n = days(first);
     $("d").className = "d" + (n === 0 ? " today" : "");
     $("d").innerHTML = n === 0 ? "D-DAY" : `<small>${n > 0 ? "D−" : "D+"}</small>${Math.abs(n)}`;
-    $("name").textContent = first.name;
+    $("name").replaceChildren(...(first.fromCal ? [dot(first.color)] : []), first.name);
     $("date").textContent = first.date.getFullYear() !== today.getFullYear() ? `${first.date.getFullYear()}년 ${fmt(first.date)}` : fmt(first.date);
     $("label").textContent = n === 0 ? "오늘" : first.pinned ? "★ 내가 고른 날" : n < 0 ? "지난 날" : "다가오는 날";
     $("rest").replaceChildren(...others.slice(0, 2).map((e) => {
       const row = document.createElement("div");
       row.className = "row";
-      row.innerHTML = `<b></b><span></span><span class="muted"></span>`;
+      row.innerHTML = `<b></b><span class="n"></span><span class="muted"></span>`;
       row.children[0].textContent = label(days(e));
-      row.children[1].textContent = e.name;
+      row.children[1].replaceChildren(...(e.fromCal ? [dot(e.color)] : []), e.name);
       row.children[2].textContent = fmt(e.date);
       return row;
     }));
     $("rest").hidden = others.length === 0;
   }
 
+  // 캘린더 일정 표시(색 점)
+  function dot(color) { const i = document.createElement("i"); if (color) i.style.background = color; return i; }
+
   darkroom.subscribe("time.now", (v) => render(v.epochMs));
+  darkroom.subscribe("calendar.events", (v) => { cal = v; lastKey = ""; render(Date.now()); });
   darkroom.onSettingsChanged(() => { lastKey = ""; render(Date.now()); });
   render(Date.now());
 </script>

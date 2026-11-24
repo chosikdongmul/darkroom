@@ -76,21 +76,62 @@ function settingControl(w, key, spec) {
     }
     case "choice":
       return el("select", { onchange: (e) => set(e.target.value) },
-        ...spec.options.map((o) => el("option", { value: o, selected: o === value }, o)));
+        ...spec.options.map((o, i) => el("option", { value: o, selected: o === value }, (spec.optionLabels && spec.optionLabels[i]) || o)));
     default:
       return el("input", { type: "text", value: value ?? "", onchange: (e) => set(e.target.value) });
   }
 }
 
 // ---------- 목록 편집기(날짜·바로가기·숫자) ----------
-const LIST_TYPES = ["dates", "links", "numbers"];
+const LIST_TYPES = ["dates", "links", "numbers", "place"];
 let pendingFocus = null; // 방금 추가한 줄의 입력칸에 커서를 둔다 { id, key, index, field }
 
 const todayPlus = (days) => { const d = new Date(Date.now() + days * 864e5); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const iconUrl = (target) => "https://assets.darkroom/icon?t=" + encodeURIComponent(target);
 const isWeb = (t) => /^https?:/i.test(t || "");
 
+// ---------- 장소 고르기(출발지·도착지) ----------
+const placeSearches = new Map(); // "id|key" → { query, results }
+function placeEditor(w, key, spec) {
+  const value = w.settings[key];
+  const id = `${w.id}|${key}`;
+  const save = (v) => send({ type: "setSetting", id: w.id, key, value: v });
+  const search = placeSearches.get(id);
+  const input = el("input", { type: "text", placeholder: "주소나 역·건물 이름 (예: 강남역)", maxlength: 100, value: search ? search.query : "" });
+  const form = el("form", { class: "inline", onsubmit: (e) => {
+    e.preventDefault();
+    const q = input.value.trim();
+    if (!q) return;
+    input.blur();
+    placeSearches.set(id, { query: q, results: null });
+    send({ type: "searchPlace", id: w.id, key, query: q });
+    render();
+  } }, input, el("button", {}, "찾기"));
+  let results = null;
+  if (search) {
+    results = el("ul", { class: "place-results" }, search.results == null
+      ? el("li", { class: "sub" }, "찾는 중…")
+      : search.results.length === 0
+        ? el("li", { class: "sub" }, "찾지 못했습니다. 동·도로 이름이나 근처 역으로 해 보세요(인터넷 필요).")
+        : search.results.map((r) => el("li", { onclick: () => {
+            placeSearches.delete(id);
+            save({ name: value && value.name ? value.name : r.name, address: r.address || r.name, lat: r.lat, lon: r.lon });
+            toast(`'${r.name}'(으)로 정했습니다`);
+          } }, el("b", {}, r.name), el("span", { class: "sub" }, r.address))));
+  }
+  const now = value
+    ? el("div", { class: "list-row place-now" },
+        el("span", { class: "link-icon" }, "📍"),
+        el("input", { type: "text", value: value.name, maxlength: 40, title: "버튼에 보일 이름 (예: 집, 회사)",
+          onchange: (e) => { const n = e.target.value.trim(); if (n) save({ ...value, name: n }); } }),
+        el("span", { class: "path", title: value.address || "" }, value.address || ""),
+        el("button", { type: "button", class: "icon-btn", title: "지우기", onclick: () => save(null) }, "✕"))
+    : el("p", { class: "sub" }, "아직 정하지 않았습니다.");
+  return el("div", { class: "place" }, now, form, results);
+}
+
 function listEditor(w, key, spec) {
+  if (spec.type === "place") return placeEditor(w, key, spec);
   const items = (Array.isArray(w.settings[key]) ? w.settings[key] : []).map((x) => (typeof x === "object" ? { ...x } : x));
   const max = spec.maxItems || 8;
   const save = (next) => send({ type: "setSetting", id: w.id, key, value: next });
@@ -170,7 +211,8 @@ function renderDetail() {
   const modeNote = w.running && w.effectiveMode && w.effectiveMode !== w.windowMode
     ? el("div", { class: "sub" }, `이 PC에서는 '${w.effectiveMode}' 방식으로 대체 중`) : null;
 
-  const settingKeys = Object.keys(w.schema || {});
+  // widget.json에 적은 순서대로(객체 키 순서는 전달 중에 바뀔 수 있어 순서 목록을 따로 받는다)
+  const settingKeys = (w.settingOrder || Object.keys(w.schema || {})).filter((k) => w.schema && w.schema[k]);
   const simpleKeys = settingKeys.filter((k) => !LIST_TYPES.includes(w.schema[k].type));
   const listKeys = settingKeys.filter((k) => LIST_TYPES.includes(w.schema[k].type));
   box.replaceChildren(...[
@@ -229,7 +271,7 @@ function renderDetail() {
 }
 
 const PERMS = (list) => list.length
-  ? list.map((p) => ({ network: "인터넷 사용", launch: "앱·파일 열기", notify: "Windows 알림" }[p] || p)).join(", ")
+  ? list.map((p) => ({ network: "인터넷 사용", launch: "앱·파일 열기", notify: "Windows 알림", calendar: "캘린더 일정 읽기", web: "웹 화면 띄우기" }[p] || p)).join(", ")
   : "없음 (인터넷 차단)";
 
 // ---------- 오른쪽: 레이아웃 ----------
@@ -308,6 +350,43 @@ function showCities(results) {
   } }, el("b", {}, c.name), el("span", { class: "sub" }, c.region))));
 }
 $("#pickFolder").addEventListener("click", () => send({ type: "pickPhotosFolder" }));
+
+// ---------- 오른쪽: 캘린더 ----------
+function renderCalendar() {
+  const c = state.calendar;
+  $("#calOff").hidden = c.connected;
+  $("#calOn").hidden = !c.connected;
+  $("#calConnect").disabled = c.busy;
+  $("#calConnect").textContent = c.busy ? "연결하는 중…" : "연결";
+  if (!c.connected) {
+    if (!c.isNaver && document.activeElement !== $("#calServer") && !$("#calServer").value) $("#calServer").value = c.server || "";
+    return;
+  }
+  $("#calWho").textContent = `${c.isNaver ? "네이버 캘린더" : "캘린더"} · ${c.username}`;
+  const when = c.updatedAt ? new Date(c.updatedAt).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" }) : null;
+  $("#calStatus").className = "hint top" + (c.error ? " err" : "");
+  $("#calStatus").textContent = c.error ? c.error
+    : c.count != null ? `일정 ${c.count}개 · ${when} 받음`
+    : c.used ? "일정을 받는 중…" : "연결됨. 디데이나 일정 위젯을 켜면 일정을 받아 옵니다.";
+  $("#calList").replaceChildren(...c.calendars.map((x) => el("li", {},
+    el("span", { class: "swatch", style: x.color ? `background:${x.color}` : "" }),
+    el("span", { class: "grow", title: x.name }, x.name),
+    switchInput(x.shown, (on) => send({ type: "calendarShow", id: x.id, shown: on })))));
+}
+$("#calForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const username = $("#calUser").value.trim().replace(/@naver\.com$/i, "");
+  const password = $("#calPass").value.replace(/\s+/g, "");
+  if (!username || !password) { calMsg("아이디와 애플리케이션 비밀번호를 모두 넣어 주세요.", true); return; }
+  calMsg("");
+  send({ type: "calendarConnect", username, password, server: $("#calServer").value.trim() });
+});
+function calMsg(text, err = false) { $("#calMsg").textContent = text; $("#calMsg").className = "hint" + (err ? " err" : ""); }
+$("#calHelp").addEventListener("click", () => send({ type: "openNaverSecurity" }));
+$("#calRefresh").addEventListener("click", () => { send({ type: "calendarRefresh" }); toast("일정을 새로 받습니다"); });
+$("#calDisconnect").addEventListener("click", () => {
+  if (confirm("캘린더 연결을 해제할까요? 저장한 비밀번호와 받아 둔 일정을 지웁니다.")) send({ type: "calendarDisconnect" });
+});
 
 // ---------- 오른쪽: 해 시간(골든아워 알림·색 자동 전환) ----------
 function renderSunTime() {
@@ -405,6 +484,7 @@ function render() {
   renderLayouts();
   renderWallpaper();
   renderSunTime();
+  renderCalendar();
   renderEnv();
   renderApp();
 }
@@ -450,6 +530,15 @@ if (wv) {
       toast(`'${m.item.name}' 추가함`);
     }
     else if (m.type === "cities") showCities(m.results);
+    else if (m.type === "places") {
+      const id = `${m.id}|${m.key}`;
+      const s = placeSearches.get(id);
+      if (s) { s.results = m.results || []; render(); }
+    }
+    else if (m.type === "calendarResult") {
+      if (m.ok) { $("#calPass").value = ""; calMsg(""); toast("캘린더를 연결했습니다"); }
+      else calMsg(m.message || "연결하지 못했습니다.", true);
+    }
   });
   send({ type: "ready" });
 }

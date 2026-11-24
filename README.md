@@ -17,7 +17,20 @@ Windows 10/11 x64, Microsoft Edge WebView2 런타임(Windows 11은 기본 포함
 - 색 테마 8가지, 글꼴 조합 7가지(모두 내장)
 - 사진 폴더로 Windows 배경화면 바꾸기
 - 골든아워 알림, 해 위치에 따라 바뀌는 색 테마, 노을 예보(구름·비·시정으로 매긴 점수)
-- 위젯: 노출값 시계(지금 해 위치·날씨에 맞는 노출), 골든아워, 필름 카운터, 히스토그램(배경화면 기준), 필름 프레임, 디데이, 바로가기, 타이머, 비주얼라이저, 시스템, 배터리, 해, 날씨, 사진, 지금 재생 중
+- 네이버 캘린더 연결(CalDAV, 읽기 전용): 디데이·일정 위젯에 일정 표시
+- 위젯: 노출값 시계(지금 해 위치·날씨에 맞는 노출), 골든아워, 필름 카운터, 히스토그램(배경화면 기준), 필름 프레임, 디데이, 일정, 지도(네이버 지도 길찾기·주변), 바로가기, 타이머, 비주얼라이저, 시스템, 배터리, 해, 날씨, 사진, 지금 재생 중
+
+### 네이버 캘린더 연결
+
+1. 네이버 내정보 → 보안설정에서 2단계 인증을 켠다.
+2. 같은 곳의 애플리케이션 비밀번호 관리에서 비밀번호를 만든다.
+3. Manager 오른쪽 "캘린더"에 아이디와 그 비밀번호를 넣고 연결한다.
+
+비밀번호는 Windows 사용자 계정으로 암호화(DPAPI)해 `state.json`에 저장한다. 일정은 15분마다 받고, 마지막으로 받은 일정을 `%APPDATA%\Darkroom\calendar-cache.json`에 남겨 인터넷이 끊겨도 보여 준다. 다른 CalDAV 서버도 주소를 바꿔 쓸 수 있다.
+
+### 지도
+
+Manager에서 출발지·도착지를 주소나 역 이름으로 찾아 정하면(OpenStreetMap Nominatim) 위젯에서 네이버 지도 모바일 웹으로 길찾기와 주변 지도를 보여 준다. 바탕화면에 붙은 위젯은 키보드 입력을 받지 않으므로 검색어 입력은 ↗ 버튼으로 브라우저에서 연다.
 
 트레이 아이콘을 누르면 Manager가 열린다. 설정과 로그는 `%APPDATA%\Darkroom`에 있다.
 
@@ -37,7 +50,7 @@ dotnet test tests/Darkroom.Core.Tests
 | 경로 | |
 |---|---|
 | `src/Darkroom.Core` | Data Bus, Provider 실행기, 모델(widget.json, 테마, 레이아웃, 상태) |
-| `src/Darkroom.Providers` | 내장 데이터 (time, system, battery, sun, weather, photos, media) |
+| `src/Darkroom.Providers` | 내장 데이터 (time, system, battery, sun, weather, photos, media, audio, calendar) |
 | `src/Darkroom.App` | 위젯 창, WebView2, 트레이, Manager, 업데이트 |
 | `sdk/` | 위젯에 주입되는 `darkroom.js`, 내장 글꼴 |
 | `widgets/`, `themes/`, `layouts/` | 위젯(폴더 하나에 위젯 하나), 테마, 레이아웃 |
@@ -65,8 +78,8 @@ dotnet test tests/Darkroom.Core.Tests
 - `size`: 내장 위젯은 폭 360, `inset` 12(그림자용 투명 여백)로 맞춰 쌓았을 때 가장자리가 나란하다.
 - `windowMode`: `desktop` · `bottom` · `normal` · `topmost`
 - `subscribe`: 받을 데이터 키. `system.*`처럼 네임스페이스 단위도 된다.
-- `permissions`: `network`가 없으면 외부 요청(fetch, WebSocket, WebRTC)이 막힌다. `launch`가 없으면 `open` Action으로 프로그램을 열 수 없다. `notify`가 있으면 `notify` Action으로 Windows 알림을 띄울 수 있다.
-- 설정 type: `bool` · `number` · `string` · `choice` · `dates`(날짜 목록) · `links`(앱·폴더·웹 주소 목록) · `numbers`(숫자 목록). Manager가 설정 화면을 만들어 준다. `description`(한 줄 설명)과 설정별 `hint`도 Manager에 보인다.
+- `permissions`: `network`가 없으면 외부 요청(fetch, WebSocket, WebRTC)이 막힌다. `launch`가 없으면 `open` Action으로 프로그램을 열 수 없다. `notify`가 있으면 `notify` Action으로 Windows 알림을 띄울 수 있다. `calendar`가 있어야 `calendar.*`를 받는다. `web`이 있으면 `darkroom.web.show(요소, 주소)`로 위젯 안에 웹 화면을 띄울 수 있고, 이동은 `"web": { "allow": ["naver.com"] }`에 적은 사이트(https)로만 된다.
+- 설정 type: `bool` · `number` · `string` · `choice`(`optionLabels`로 표시 이름) · `dates`(날짜 목록) · `links`(앱·폴더·웹 주소 목록) · `numbers`(숫자 목록) · `place`(장소 `{ name, address, lat, lon }`). Manager가 설정 화면을 만들어 준다. `description`(한 줄 설명)과 설정별 `hint`도 Manager에 보인다.
 
 ```js
 const off = darkroom.subscribe("time.now", (v) => { /* v.epochMs */ });
@@ -93,5 +106,6 @@ CSS 변수: `--dr-bg` `--dr-fg` `--dr-muted` `--dr-faint` `--dr-accent` `--dr-in
 | `photos.current` `photos.histogram` `photos.stats` | 사진 폴더의 사진, 히스토그램, 촬영 통계 |
 | `media.nowPlaying` `media.artwork` | 재생 중인 미디어 |
 | `audio.spectrum` | 스피커로 나가는 소리의 주파수 막대 32개(0~1) |
+| `calendar.events` | `{ connected, ok, stale, error, updatedAt, events: [{ title, start, end, allDay, calendar, color }] }` (`calendar` 권한 필요) |
 
-내장 글꼴은 모두 SIL Open Font License 1.1이다(`sdk/fonts/LICENSES.md`).
+내장 글꼴은 모두 SIL Open Font License 1.1이다(`sdk/fonts/LICENSES.md`). 그 밖의 라이브러리는 `sdk/THIRD-PARTY-NOTICES.md`.

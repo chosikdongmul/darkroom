@@ -9,7 +9,7 @@ using Microsoft.Web.WebView2.Core;
 namespace Darkroom.App;
 
 /// <summary>앱 상태의 단일 출처. 트레이·Manager·위젯 Action이 모두 여기를 거친다. UI 스레드에서만 호출.</summary>
-internal sealed class AppController : IDisposable
+internal sealed partial class AppController : IDisposable
 {
     readonly Dictionary<string, WidgetHost> _open = new();
     readonly HashSet<string> _lost = new();          // Explorer 재시작 등으로 창을 잃은 위젯
@@ -103,6 +103,7 @@ internal sealed class AppController : IDisposable
         State.Wallpaper ??= new WallpaperSettings();
         if (State.Wallpaper.Validate() is { } wbad) { Log.Warn($"배경화면 설정 오류({wbad}) → 기본값"); State.Wallpaper.IntervalMinutes = 30; State.Wallpaper.Fit = "fill"; }
         if (State.Providers.Validate() is { } bad) { Log.Warn($"환경 설정 오류({bad}) → 기본값"); State.Providers = new ProviderSettings(); }
+        State.Calendar ??= new CalendarSettings();
         State.Alerts ??= new SunAlertSettings();
         if (State.Alerts.Validate() != null) State.Alerts = new SunAlertSettings();
         _phase = CurrentPhase(); // 위젯을 열기 전에 정해 둬야 처음부터 맞는 색으로 뜬다
@@ -112,7 +113,7 @@ internal sealed class AppController : IDisposable
         var envOptions = new CoreWebView2EnvironmentOptions(string.IsNullOrWhiteSpace(extraArgs) ? null : extraArgs);
         Env = await CoreWebView2Environment.CreateAsync(null, AppPaths.WebViewData, envOptions);
         Log.Info($"WebView2 런타임 {Env.BrowserVersionString}");
-        _providers = new ProviderHost(Bus, [.. BuiltInProviders.Create(() => State.Providers), new WallpaperProvider()]);
+        _providers = new ProviderHost(Bus, [.. BuiltInProviders.Create(() => State.Providers), new WallpaperProvider(), CreateCalendarProvider()]);
 
         foreach (var id in State.Widgets.Where(kv => kv.Value.Enabled).Select(kv => kv.Key).ToList())
         {
@@ -849,7 +850,7 @@ internal sealed class AppController : IDisposable
                 windowMode = st.WindowMode ?? m.WindowMode, effectiveMode = h?.Window?.Mode,
                 opacity = st.Opacity, locked = st.Locked, hoverFade = st.HoverFade,
                 permissions = m.Permissions, subscribe = m.Subscribe,
-                schema = m.Settings, settings = m.EffectiveSettings(st.Settings),
+                schema = m.Settings, settingOrder = m.Settings.Keys.ToList(), settings = m.EffectiveSettings(st.Settings),
             };
         }).ToList(),
         invalid = InstallErrors.Select(kv => new { folder = kv.Key, error = kv.Value }).ToList(),
@@ -882,6 +883,7 @@ internal sealed class AppController : IDisposable
             update = Updates.Snapshot(),
             checkUpdates = State.CheckUpdates,
         },
+        calendar = CalendarSnapshot(),
         sunTime = new
         {
             themeAuto = State.ThemeAuto,

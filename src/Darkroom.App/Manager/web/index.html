@@ -64,6 +64,36 @@
         <p class="hint">끄면 켜기 전 배경화면으로 돌아갑니다. 긴 변 1200px 미만 사진(작은 캡처 등)은 건너뜁니다.</p>
       </div>
 
+      <h2 class="gap">캘린더</h2>
+      <div class="env" id="cal">
+        <div id="calOff">
+          <p class="hint top">네이버 캘린더 일정을 디데이·일정 위젯에 띄웁니다. 읽기만 하고 일정을 바꾸지 않습니다.</p>
+          <ol class="steps">
+            <li>네이버 <b>내정보 → 보안설정</b>에서 <b>2단계 인증</b>을 켭니다.</li>
+            <li>같은 곳의 <b>애플리케이션 비밀번호 관리</b>에서 "Darkroom"으로 비밀번호를 만듭니다.</li>
+            <li>아래에 아이디와 만든 비밀번호를 넣고 연결을 누릅니다.</li>
+          </ol>
+          <button type="button" class="ghost small" id="calHelp">네이버 내정보 열기</button>
+          <form id="calForm" class="env">
+            <label>네이버 아이디 <input id="calUser" autocomplete="off" spellcheck="false" maxlength="100" placeholder="아이디 (@naver.com 빼고)"></label>
+            <label>애플리케이션 비밀번호 <input id="calPass" type="password" autocomplete="off" maxlength="200" placeholder="평소 로그인 비밀번호 말고, 새로 만든 것"></label>
+            <details class="advanced inner">
+              <summary>다른 캘린더(CalDAV)</summary>
+              <label>서버 주소 <input id="calServer" spellcheck="false" maxlength="300" placeholder="https://caldav.calendar.naver.com"></label>
+            </details>
+            <button id="calConnect">연결</button>
+            <p class="hint" id="calMsg"></p>
+          </form>
+        </div>
+        <div id="calOn" hidden>
+          <div class="loc-now" id="calWho"></div>
+          <p class="hint top" id="calStatus"></p>
+          <ul id="calList" class="cal-list"></ul>
+          <div class="inline"><button type="button" class="ghost small" id="calRefresh">지금 새로 받기</button><button type="button" class="danger small" id="calDisconnect">연결 해제</button></div>
+          <p class="hint">비밀번호는 이 PC의 Windows 계정으로 암호화해 저장합니다. 받은 일정은 인터넷이 끊겨도 마지막으로 받은 것을 보여 줍니다.</p>
+        </div>
+      </div>
+
       <h2 class="gap">해 시간</h2>
       <div class="env">
         <label class="switch"><input type="checkbox" id="alertOn"><span></span>골든아워 알림</label>

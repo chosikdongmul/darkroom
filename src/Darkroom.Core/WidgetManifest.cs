@@ -32,6 +32,8 @@ public sealed class SettingSpec
     /// <summary>Manager에서 설정 아래에 보여 줄 짧은 도움말</summary>
     public string? Hint { get; set; }
     public List<string>? Options { get; set; }
+    /// <summary>choice의 화면 표시 이름(options와 같은 순서). 없으면 값을 그대로 보여 준다.</summary>
+    public List<string>? OptionLabels { get; set; }
     public double? Min { get; set; }
     public double? Max { get; set; }
     public double? Step { get; set; }
@@ -48,6 +50,9 @@ public sealed class SettingSpec
                                        && Str(e, "name", 60) != null && OptBool(e, "yearly") && OptBool(e, "pinned")),
         "links" => IsList(v, 12, e => Str(e, "name", 40) != null && Str(e, "target", 1024) is { Length: > 0 }),
         "numbers" => IsList(v, 8, e => e.ValueKind == JsonValueKind.Number && InRange(e.GetDouble())),
+        // 장소: null(아직 안 고름) 또는 { name, address?, lat, lon }
+        "place" => v.ValueKind == JsonValueKind.Null || (Str(v, "name", 40) is { Length: > 0 } && OptStr(v, "address", 160)
+                   && Num(v, "lat") is >= -90 and <= 90 && Num(v, "lon") is >= -180 and <= 180),
         _ => false,
     };
 
@@ -58,6 +63,12 @@ public sealed class SettingSpec
 
     static string? Str(JsonElement e, string name, int max) =>
         e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var s) && s.ValueKind == JsonValueKind.String && s.GetString()!.Length <= max ? s.GetString() : null;
+
+    static bool OptStr(JsonElement e, string name, int max) =>
+        !e.TryGetProperty(name, out var s) || s.ValueKind == JsonValueKind.Null || (s.ValueKind == JsonValueKind.String && s.GetString()!.Length <= max);
+
+    static double? Num(JsonElement e, string name) =>
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var n) && n.ValueKind == JsonValueKind.Number ? n.GetDouble() : null;
 
     static bool OptBool(JsonElement e, string name) =>
         !e.TryGetProperty(name, out var b) || b.ValueKind is JsonValueKind.True or JsonValueKind.False;
@@ -76,14 +87,16 @@ public sealed partial class WidgetManifest
     public List<string> Subscribe { get; set; } = new();
     public List<string> Permissions { get; set; } = new();
     public Dictionary<string, SettingSpec> Settings { get; set; } = new();
+    /// <summary>"web" 권한: 위젯 안에 띄울 웹 화면이 이동할 수 있는 사이트(도메인과 그 하위 도메인).</summary>
+    public WebSpec? Web { get; set; }
 
     [JsonIgnore] public string Folder { get; private set; } = "";
     /// <summary>가상 호스트 이름. 위젯 폴더가 https://{HostName}/ 에 매핑된다.</summary>
     [JsonIgnore] public string HostName => Id + ".darkroom";
 
     public const string FileName = "widget.json";
-    static readonly string[] KnownSettingTypes = ["bool", "number", "string", "choice", "dates", "links", "numbers"];
-    static readonly string[] KnownPermissions = ["network", "launch", "notify"];
+    static readonly string[] KnownSettingTypes = ["bool", "number", "string", "choice", "dates", "links", "numbers", "place"];
+    static readonly string[] KnownPermissions = ["network", "launch", "notify", "calendar", "web"];
     /// <summary>호스트가 쓰는 가상 주소(assets.darkroom = 내장 글꼴, manager.darkroom, photos.darkroom)와 겹치는 id</summary>
     static readonly string[] ReservedIds = ["assets", "manager", "photos"];
 
@@ -119,7 +132,14 @@ public sealed partial class WidgetManifest
             if (!KnownSettingTypes.Contains(spec.Type)) errors.Add($"설정 '{key}': type '{spec.Type}'");
             else if (spec.Default is { } d && !spec.Accepts(d)) errors.Add($"설정 '{key}': default가 type과 맞지 않음");
             else if (spec.Type == "choice" && (spec.Options == null || spec.Options.Count == 0)) errors.Add($"설정 '{key}': choice에는 options 필요");
+            else if (spec.OptionLabels != null && spec.OptionLabels.Count != (spec.Options?.Count ?? 0)) errors.Add($"설정 '{key}': optionLabels 개수가 options와 다름");
         }
+        if (m.HasPermission("web"))
+        {
+            if (m.Web?.Allow is not { Count: > 0 } allow) errors.Add("web 권한에는 web.allow(허용할 사이트) 필요");
+            else foreach (var d in allow) if (!WebSpec.IsValidDomain(d)) errors.Add($"web.allow '{d}' 형식 오류");
+        }
+        else if (m.Web != null) errors.Add("web 항목은 web 권한이 있을 때만");
         if (errors.Count > 0) throw new InvalidDataException(string.Join("; ", errors));
         return m;
     }
@@ -138,9 +158,25 @@ public sealed partial class WidgetManifest
                 "number" => DrJson.ToElement(spec.Min ?? 0),
                 "choice" => DrJson.ToElement(spec.Options![0]),
                 "dates" or "links" or "numbers" => DrJson.ToElement(Array.Empty<object>()),
+                "place" => DrJson.ToElement(null),
                 _ => DrJson.ToElement(""),
             };
         }
         return result;
     }
+}
+
+public sealed partial class WebSpec
+{
+    public List<string> Allow { get; set; } = new();
+
+    [GeneratedRegex(@"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$")]
+    private static partial Regex DomainPattern();
+
+    public static bool IsValidDomain(string d) => d.Length <= 253 && DomainPattern().IsMatch(d);
+
+    /// <summary>https 주소이고 허용한 사이트(또는 그 하위 도메인)인지.</summary>
+    public bool Allows(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps
+        && Allow.Any(d => u.Host.Equals(d, StringComparison.OrdinalIgnoreCase) || u.Host.EndsWith("." + d, StringComparison.OrdinalIgnoreCase));
 }

@@ -1,0 +1,113 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>지도</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+  [hidden] { display: none !important; }
+  .card {
+    position: absolute; inset: 12px; box-sizing: border-box; padding: 10px;
+    border-radius: var(--dr-radius, 22px); background: var(--dr-bg, rgba(28, 28, 30, .72));
+    box-shadow: var(--dr-shadow, 0 2px 8px rgba(0, 0, 0, .28));
+    color: var(--dr-fg, #f5f5f7); font: 13px/1.3 var(--dr-font-ui, "Segoe UI", sans-serif);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .muted { color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+  .bar { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 8px; min-height: 30px; flex: none; }
+  .title { font-weight: 600; margin-right: auto; white-space: nowrap; }
+  .bar button {
+    font: inherit; font-size: 12px; color: var(--dr-fg, #f5f5f7); background: var(--dr-faint, rgba(235, 235, 245, .1));
+    border: 0; border-radius: 999px; padding: 5px 11px; cursor: pointer; white-space: nowrap; max-width: 92px;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .bar button:hover { background: rgba(235, 235, 245, .2); }
+  .bar button.icon { padding: 5px 9px; }
+  .bar button.on { background: var(--dr-accent, #ff9f45); color: #1c1c1c; font-weight: 600; }
+  .view { flex: 1; min-height: 0; border-radius: 12px; background: rgba(0, 0, 0, .25); }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="bar" data-drag>
+    <span class="title">지도</span>
+    <button id="around" type="button" title="출발지 주변 지도">주변</button>
+    <button id="go" type="button" hidden></button>
+    <button id="back" type="button" hidden></button>
+    <button id="big" type="button" class="icon" title="브라우저의 네이버 지도로 크게 열기 (검색어 입력은 여기서)">↗</button>
+  </div>
+  <div class="view" id="view"></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // 위젯 안: 네이버 지도 모바일 웹. 앱 열기 화면을 거치지 않게 app 파라미터 없이, 좌표는 WGS84.
+  const ROUTE = { transit: "routeType=2&pathType=1", car: "routeType=1&pathType=0", walk: "routeType=4&pathType=3" };
+  function routeUrl(a, b, mode) {
+    const q = new URLSearchParams({ slng: a.lon, slat: a.lat, sText: a.name, sdid: "", elng: b.lon, elat: b.lat, eText: b.name, edid: "", menu: "route" });
+    return `https://m.map.naver.com/?${q}&${ROUTE[mode] || ROUTE.transit}`;
+  }
+  function aroundUrl(p) {
+    if (!p) return "https://m.map.naver.com/";
+    return `https://m.map.naver.com/?${new URLSearchParams({ lng: p.lon, lat: p.lat, dlevel: 13, mapMode: 0 })}`;
+  }
+
+  // 브라우저(PC 화면)용 주소: Web 메르카토르(EPSG:3857) 좌표
+  const merc = (p) => [p.lon * Math.PI / 180 * 6378137, Math.log(Math.tan(Math.PI / 4 + p.lat * Math.PI / 360)) * 6378137].map((v) => v.toFixed(7));
+  const enc = (s) => encodeURIComponent(String(s || "").replace(/[,/]/g, " "));
+  function desktopUrl(which) {
+    const { a, b, mode } = places();
+    const m = { transit: "transit", car: "car", walk: "walk" }[mode] || "transit";
+    const route = (p, q) => { const [sx, sy] = merc(p), [ex, ey] = merc(q); return `https://map.naver.com/p/directions/${sx},${sy},${enc(p.name)},,/${ex},${ey},${enc(q.name)},,/-/${m}`; };
+    if (which === "go" && a && b) return route(a, b);
+    if (which === "back" && a && b) return route(b, a);
+    if (!a) return "https://map.naver.com/p";
+    const [x, y] = merc(a);
+    return `https://map.naver.com/p?c=${x},${y},15,0,0,0,dh`;
+  }
+
+  let current = null;   // "around" | "go" | "back"
+  let shownKey = "";
+
+  function places() {
+    const s = darkroom.settings;
+    return { a: s.origin || null, b: s.destination || null, mode: s.mode };
+  }
+
+  function open(which) {
+    const { a, b, mode } = places();
+    let url;
+    if (which === "go" && a && b) url = routeUrl(a, b, mode);
+    else if (which === "back" && a && b) url = routeUrl(b, a, mode);
+    else { which = "around"; url = aroundUrl(a); }
+    current = which;
+    for (const id of ["around", "go", "back"]) $(id).classList.toggle("on", id === current);
+    darkroom.web.show($("view"), url);
+  }
+
+  function setup(first) {
+    const { a, b, mode } = places();
+    const both = !!(a && b);
+    $("go").hidden = $("back").hidden = !both;
+    $("around").title = a ? `${a.name} 주변 지도` : "지도 (Manager에서 출발지를 정하면 그 주변)";
+    if (both) {
+      $("go").textContent = `→ ${b.name}`; $("go").title = `${a.name}에서 ${b.name}까지`;
+      $("back").textContent = `→ ${a.name}`; $("back").title = `${b.name}에서 ${a.name}까지`;
+    }
+    const key = JSON.stringify([a, b, mode]);
+    if (!first && key === shownKey) return;
+    shownKey = key;
+    if (!both || (first && darkroom.settings.start === "around")) { open("around"); return; }
+    // 켤 때: 오전엔 가는 길, 오후엔 오는 길. 설정을 바꿨을 때는 보던 화면 그대로.
+    open(first || !current ? (new Date().getHours() < 14 ? "go" : "back") : current);
+  }
+
+  $("around").onclick = () => open("around");
+  $("go").onclick = () => open("go");
+  $("back").onclick = () => open("back");
+  $("big").onclick = () => darkroom.action({ type: "open", target: desktopUrl(current) });
+  darkroom.onSettingsChanged(() => setup(false));
+  setup(true);
+</script>
+</body>
+</html>

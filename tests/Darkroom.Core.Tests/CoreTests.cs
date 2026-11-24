@@ -131,6 +131,51 @@ public class ManifestTests : IDisposable
         var ex = Assert.Throws<InvalidDataException>(() => Write(json));
         Assert.Contains(expected, ex.Message);
     }
+
+    [Fact]
+    public void Place_setting_accepts_null_or_a_located_place()
+    {
+        var spec = new SettingSpec { Type = "place" };
+        Assert.True(spec.Accepts(JsonDocument.Parse("null").RootElement));
+        Assert.True(spec.Accepts(DrJson.ToElement(new { name = "집", address = "서울", lat = 37.55, lon = 126.97 })));
+        Assert.True(spec.Accepts(DrJson.ToElement(new { name = "집", lat = 37.55, lon = 126.97 })));
+        Assert.False(spec.Accepts(DrJson.ToElement(new { name = "", lat = 37.55, lon = 126.97 })));
+        Assert.False(spec.Accepts(DrJson.ToElement(new { name = "집", lat = 137.55, lon = 126.97 })));
+        Assert.False(spec.Accepts(DrJson.ToElement(new { name = "집" })));
+    }
+
+    [Fact]
+    public void Web_permission_needs_allowed_sites_and_only_allows_them()
+    {
+        var ex = Assert.Throws<InvalidDataException>(() => Write("""{ "id": "a.b", "permissions": ["web"] }"""));
+        Assert.Contains("web.allow", ex.Message);
+        Assert.Throws<InvalidDataException>(() => Write("""{ "id": "a.b", "web": { "allow": ["naver.com"] } }"""));
+        var m = Write("""{ "id": "a.b", "permissions": ["web"], "web": { "allow": ["naver.com"] } }""");
+        Assert.True(m.Web!.Allows("https://m.map.naver.com/?lng=1"));
+        Assert.True(m.Web.Allows("https://naver.com/"));
+        Assert.False(m.Web.Allows("http://m.map.naver.com/"));        // https만
+        Assert.False(m.Web.Allows("https://evilnaver.com/"));
+        Assert.False(m.Web.Allows("https://naver.com.evil.io/"));
+        Assert.False(m.Web.Allows("intent://route"));
+    }
+
+    static string RepoWidgets()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, "widgets"))) dir = dir.Parent;
+        return Path.Combine(dir!.FullName, "widgets");
+    }
+
+    [Fact]
+    public void Bundled_widgets_load_and_keep_setting_order()
+    {
+        foreach (var folder in Directory.GetDirectories(RepoWidgets()))
+            WidgetManifest.Load(folder); // 하나라도 잘못되면 예외
+        var map = WidgetManifest.Load(Path.Combine(RepoWidgets(), "naver-map"));
+        Assert.Equal(["origin", "destination", "mode", "start"], map.Settings.Keys.ToArray());
+        var json = JsonSerializer.Serialize(new { schema = map.Settings, settings = map.EffectiveSettings(null) }, DrJson.Compact);
+        Assert.True(json.IndexOf("\"origin\"", StringComparison.Ordinal) < json.IndexOf("\"destination\"", StringComparison.Ordinal), json);
+    }
 }
 
 public class FontPackTests

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>일정</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+  [hidden] { display: none !important; }
+  .card {
+    position: absolute; inset: 12px; box-sizing: border-box; padding: 14px 18px 12px;
+    border-radius: var(--dr-radius, 22px); background: var(--dr-bg, rgba(28, 28, 30, .72));
+    box-shadow: var(--dr-shadow, 0 2px 8px rgba(0, 0, 0, .28));
+    color: var(--dr-fg, #f5f5f7); font: 13px/1.3 var(--dr-font-ui, "Segoe UI", sans-serif);
+    font-variant-numeric: tabular-nums; display: flex; flex-direction: column; gap: 8px;
+  }
+  .muted { color: var(--dr-muted, rgba(235, 235, 245, .56)); }
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .today { font-size: 15px; font-weight: 600; white-space: nowrap; }
+  .note { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list { display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: hidden; }
+  .day { font-size: 11px; margin-top: 2px; }
+  .ev { display: flex; align-items: center; gap: 9px; font-size: 13px; min-width: 0; }
+  .ev .bar { width: 3px; align-self: stretch; border-radius: 2px; background: var(--dr-muted, rgba(235, 235, 245, .56)); flex: none; }
+  .ev .t { font-family: var(--dr-font-num, sans-serif); font-weight: var(--dr-num-weight, 600); font-variant-numeric: tabular-nums lining-nums;
+           min-width: 62px; white-space: nowrap; font-size: 12px; }
+  .ev .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .ev.now .t { color: var(--dr-accent, #ff9f45); }
+  .ev.past { opacity: .45; }
+  .more { font-size: 11px; }
+  .empty { font-size: 13px; line-height: 1.5; margin: auto 0; }
+</style>
+</head>
+<body>
+<main class="card" data-drag>
+  <div class="head"><div class="today" id="today"></div><div class="note muted" id="note"></div></div>
+  <div class="list" id="list"></div>
+  <div class="empty muted" id="empty" hidden></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const DOW = "일월화수목금토";
+  let cal = null, lastKey = "";
+
+  // "2026-11-24" 또는 "2026-11-24T10:00" → 현지 시각 Date
+  function parse(s) {
+    const m = String(s || "").match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) : null;
+  }
+  const hm = (d) => { const h = d.getHours(), m = String(d.getMinutes()).padStart(2, "0"); return `${h < 12 ? "오전" : "오후"} ${h % 12 || 12}:${m}`; };
+  const dayLabel = (d, today) => {
+    const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 864e5);
+    const base = `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
+    return diff === 0 ? "오늘" : diff === 1 ? `내일 · ${base}` : base;
+  };
+
+  function render(nowMs) {
+    const now = new Date(nowMs);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const s = darkroom.settings;
+    const minute = Math.floor(nowMs / 60000);
+    const key = `${minute}|${s.days}|${s.showEnded}|${cal ? cal.updatedAt + "|" + cal.ok + "|" + cal.connected : ""}`;
+    if (key === lastKey) return;
+    lastKey = key;
+
+    $("today").textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 ${DOW[now.getDay()]}요일`;
+    const connected = cal && cal.connected;
+    if (!connected) {
+      $("note").textContent = "";
+      $("list").replaceChildren();
+      $("empty").hidden = false;
+      $("empty").innerHTML = cal == null ? "일정을 불러오는 중…" : "트레이 아이콘 → Manager → 오른쪽 <b>캘린더</b>에서<br>네이버 캘린더를 연결하세요.";
+      return;
+    }
+
+    // 받은 시각 / 오류
+    const upd = cal.updatedAt ? new Date(cal.updatedAt) : null;
+    $("note").textContent = cal.error ? (upd ? `마지막으로 받은 일정 · ${hm(upd)}` : cal.error) : "";
+    $("note").title = cal.error || "";
+
+    const until = new Date(today.getTime() + Number(s.days || 7) * 864e5);
+    const items = (cal.events || []).map((e) => ({ ...e, s: parse(e.start), e: parse(e.end) }))
+      .filter((e) => e.s && e.e && e.s < until && (s.showEnded ? e.e > today : e.e > now))
+      .sort((a, b) => a.s - b.s || (b.allDay - a.allDay));
+
+    // 화면에 들어가는 만큼(약 6줄: 날짜 머리글 포함)
+    const rows = [];
+    let lastDay = "", used = 0, shown = 0;
+    const MAX = 6;
+    for (const e of items) {
+      const startDay = e.s < today ? today : e.s; // 어제부터 이어지는 일정은 오늘로
+      const dl = dayLabel(startDay, today);
+      const need = dl !== lastDay ? 2 : 1;
+      if (used + need > MAX) break;
+      if (dl !== lastDay) { rows.push(el("div", "day muted", dl)); lastDay = dl; used++; }
+      const row = el("div", "ev");
+      const ongoing = !e.allDay && e.s <= now && now < e.e;
+      if (ongoing) row.classList.add("now");
+      if (!e.allDay && e.e <= now) row.classList.add("past");
+      const bar = el("span", "bar"); if (e.color) bar.style.background = e.color;
+      row.append(bar, el("span", "t", e.allDay ? "하루 종일" : ongoing ? "지금" : hm(e.s)), el("span", "n", e.title));
+      rows.push(row); used++; shown++;
+    }
+    if (items.length > shown) rows.push(el("div", "more muted", `그 밖에 ${items.length - shown}개`));
+    $("list").replaceChildren(...rows);
+    $("empty").hidden = items.length > 0;
+    if (!items.length) $("empty").textContent = s.days === "1" ? "오늘 남은 일정이 없습니다." : "다가오는 일정이 없습니다.";
+  }
+
+  function el(tag, cls, text) { const e = document.createElement(tag); e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  darkroom.subscribe("time.now", (v) => render(v.epochMs));
+  darkroom.subscribe("calendar.events", (v) => { cal = v; lastKey = ""; render(Date.now()); });
+  darkroom.onSettingsChanged(() => { lastKey = ""; render(Date.now()); });
+  render(Date.now());
+</script>
+</body>
+</html>

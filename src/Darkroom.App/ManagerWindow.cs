@@ -39,6 +39,8 @@ internal sealed class ManagerWindow : Window
         core.Settings.AreDefaultContextMenusEnabled = _app.DevMode;
         core.Settings.IsStatusBarEnabled = false;
         core.Settings.IsZoomControlEnabled = false;
+        core.Settings.IsPasswordAutosaveEnabled = false; // 캘린더 애플리케이션 비밀번호를 브라우저에 따로 남기지 않는다
+        core.Settings.IsGeneralAutofillEnabled = false;
         core.SetVirtualHostNameToFolderMapping(Host, AppPaths.ManagerWeb, CoreWebView2HostResourceAccessKind.DenyCors);
         core.AddWebResourceRequestedFilter(AppController.AssetFilter, CoreWebView2WebResourceContext.All);
         core.WebResourceRequested += (_, e) => _app.TryServeAsset(e, allowIcons: true);
@@ -154,6 +156,17 @@ internal sealed class ManagerWindow : Window
                     error = al == null ? "알림 설정 형식 오류" : _app.SetAlerts(al);
                     break;
                 case "installUpdate": await _app.InstallUpdateAsync(); break;
+                case "searchPlace": Post(new { type = "places", id = S("id"), key = S("key"), results = await AppController.SearchPlacesAsync(S("query")) }); break;
+                case "calendarConnect":
+                    var calErr = await _app.ConnectCalendarAsync(S("server"), S("username"), S("password"));
+                    Post(new { type = "calendarResult", ok = calErr == null, message = calErr });
+                    break;
+                case "calendarDisconnect": _app.DisconnectCalendar(); break;
+                case "calendarShow": _app.SetCalendarShown(S("id"), B("shown")); break;
+                case "calendarRefresh": _app.RefreshCalendar(); break;
+                case "openNaverSecurity":
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://nid.naver.com/user2/help/myInfoV2?m=viewSecurity&lang=ko_KR") { UseShellExecute = true });
+                    break;
             }
         }
         catch (Exception ex)

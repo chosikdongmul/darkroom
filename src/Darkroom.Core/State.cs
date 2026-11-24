@@ -87,6 +87,29 @@ public sealed class SunAlertSettings
     public string? Validate() => LeadMinutes is < 5 or > 180 ? "알림 시간은 5~180분" : null;
 }
 
+/// <summary>캘린더(CalDAV) 계정. 비밀번호는 Windows 사용자 계정으로 암호화(DPAPI)해서만 저장한다.</summary>
+public sealed class CalendarSettings
+{
+    public const string NaverServer = "https://caldav.calendar.naver.com";
+    public string Server { get; set; } = NaverServer;
+    public string? Username { get; set; }
+    /// <summary>DPAPI(CurrentUser)로 암호화한 비밀번호, base64</summary>
+    public string? Secret { get; set; }
+    /// <summary>마지막으로 찾은 캘린더 목록(Manager 표시용)</summary>
+    public List<CalendarRef> Calendars { get; set; } = new();
+    /// <summary>위젯에 보여 주지 않을 캘린더 id</summary>
+    public List<string> Hidden { get; set; } = new();
+
+    [JsonIgnore] public bool Connected => !string.IsNullOrEmpty(Username) && !string.IsNullOrEmpty(Secret);
+}
+
+public sealed class CalendarRef
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string? Color { get; set; }
+}
+
 public sealed class AppState
 {
     public int Version { get; set; } = 1;
@@ -102,6 +125,7 @@ public sealed class AppState
     /// <summary>해 위치에 따라 색 테마를 바꾼다(골든아워·블루아워·밤). 낮에는 Theme.</summary>
     public bool ThemeAuto { get; set; }
     public SunAlertSettings Alerts { get; set; } = new();
+    public CalendarSettings Calendar { get; set; } = new();
     public Dictionary<string, WidgetState> Widgets { get; set; } = new();
 
     public static AppState? TryLoad(string path)

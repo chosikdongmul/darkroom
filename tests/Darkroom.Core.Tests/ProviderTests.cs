@@ -338,3 +338,105 @@ public class BusAndHostTests
         Assert.Equal(7, next.GetProperty("score").GetInt32());
     }
 }
+
+public class CalendarTests
+{
+    /// <summary>CalDAV 서버 흉내: 경로·메서드별로 정해 둔 응답을 돌려주고 받은 요청을 남긴다.</summary>
+    sealed class FakeCalDav : HttpMessageHandler
+    {
+        public readonly List<(string Method, string Path, string? Auth, string? Depth)> Requests = new();
+        public bool RejectAuth;
+        public string Ics = "";
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct)
+        {
+            var body = req.Content == null ? "" : await req.Content.ReadAsStringAsync(ct);
+            Requests.Add((req.Method.Method, req.RequestUri!.AbsolutePath, req.Headers.Authorization?.ToString(), req.Headers.TryGetValues("Depth", out var d) ? d.First() : null));
+            if (RejectAuth) return new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
+            string xml = (req.Method.Method, req.RequestUri.AbsolutePath) switch
+            {
+                ("PROPFIND", "/") => """<d:multistatus xmlns:d="DAV:"><d:response><d:href>/</d:href><d:propstat><d:prop><d:current-user-principal><d:href>/principals/tester/</d:href></d:current-user-principal></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>""",
+                ("PROPFIND", "/principals/tester/") => """<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:response><d:href>/principals/tester/</d:href><d:propstat><d:prop><c:calendar-home-set><d:href>/calendars/tester/</d:href></c:calendar-home-set></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>""",
+                ("PROPFIND", "/calendars/tester/") => """
+                    <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:a="http://apple.com/ns/ical/">
+                      <d:response><d:href>/calendars/tester/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+                      <d:response><d:href>/calendars/tester/home/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>내 캘린더</d:displayname>
+                        <c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set><a:calendar-color>#2DB400FF</a:calendar-color></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+                      <d:response><d:href>/calendars/tester/todo/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>할 일</d:displayname>
+                        <c:supported-calendar-component-set><c:comp name="VTODO"/></c:supported-calendar-component-set></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+                    </d:multistatus>
+                    """,
+                ("REPORT", "/calendars/tester/home/") => $"""<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:response><d:href>/calendars/tester/home/1.ics</d:href><d:propstat><d:prop><c:calendar-data>{System.Security.SecurityElement.Escape(Ics)}</c:calendar-data></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>""",
+                _ => "",
+            };
+            if (xml.Length == 0) return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+            return new HttpResponseMessage((System.Net.HttpStatusCode)207) { Content = new StringContent(xml, System.Text.Encoding.UTF8, "application/xml") };
+        }
+    }
+
+    static string Ics(params string[] events) =>
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:test\r\n" + string.Concat(events.Select(e => "BEGIN:VEVENT\r\n" + e + "END:VEVENT\r\n")) + "END:VCALENDAR\r\n";
+
+    static string D(DateTime d) => d.ToString("yyyyMMdd");
+
+    [Fact]
+    public async Task Discovers_event_calendars_and_reads_events_with_basic_auth()
+    {
+        var today = DateTime.Today;
+        var fake = new FakeCalDav
+        {
+            Ics = Ics($"UID:a\r\nSUMMARY:엄마 생신\r\nDTSTART;VALUE=DATE:{D(today.AddDays(3).AddYears(-5))}\r\nDTEND;VALUE=DATE:{D(today.AddDays(4).AddYears(-5))}\r\nRRULE:FREQ=YEARLY\r\n")
+        };
+        var http = new HttpClient(fake);
+        var provider = new CalendarProvider(() => null, () => Array.Empty<string>(), Path.GetTempFileName(), http);
+        var r = await provider.SyncAsync(new CalendarAccount("caldav.example.com", "tester", "app-pw"), Array.Empty<string>(), CancellationToken.None);
+
+        Assert.Null(r.Error);
+        var cal = Assert.Single(r.Calendars);                       // 할 일 목록(VTODO)은 뺀다
+        Assert.Equal("내 캘린더", cal.Name);
+        Assert.Equal("#2DB400", cal.Color);                         // #RRGGBBAA → #RRGGBB
+        Assert.Equal(2, r.Items.Count);                             // 하루 종일 일정은 400일 앞까지 → 올해와 내년
+        var ev = r.Items[0];
+        Assert.Equal("엄마 생신", ev.Title);
+        Assert.True(ev.AllDay);
+        Assert.Equal(today.AddDays(3), ev.Start);                   // 매년 반복 → 올해 날짜
+        Assert.All(fake.Requests, q => Assert.Equal("Basic " + Convert.ToBase64String("tester:app-pw"u8.ToArray()), q.Auth));
+        Assert.Contains(fake.Requests, q => q.Method == "REPORT" && q.Depth == "1");
+
+        var json = CalendarProvider.ToJson(ev);
+        Assert.Equal(today.AddDays(3).ToString("yyyy-MM-dd"), json.Start); // 하루 종일: 날짜만
+    }
+
+    [Fact]
+    public async Task Wrong_password_gives_a_plain_message()
+    {
+        var fake = new FakeCalDav { RejectAuth = true };
+        var provider = new CalendarProvider(() => null, () => Array.Empty<string>(), Path.GetTempFileName(), new HttpClient(fake));
+        var r = await provider.SyncAsync(new CalendarAccount("https://caldav.example.com", "tester", "wrong"), Array.Empty<string>(), CancellationToken.None);
+        Assert.Contains("비밀번호", r.Error);
+        Assert.Single(fake.Requests); // 인증 실패면 다른 주소로 다시 시도하지 않는다
+    }
+
+    [Fact]
+    public void Server_must_be_https()
+    {
+        Assert.Equal("https://caldav.calendar.naver.com/", CalDavClient.NormalizeServer("caldav.calendar.naver.com").AbsoluteUri);
+        Assert.Throws<CalDavException>(() => CalDavClient.NormalizeServer("http://caldav.example.com"));
+    }
+
+    [Fact]
+    public void Expands_weekly_events_skips_cancelled_and_converts_to_local_time()
+    {
+        var monday = DateTime.Today.AddDays(((int)DayOfWeek.Monday - (int)DateTime.Today.DayOfWeek + 7) % 7 + 7); // 다음다음 주 월요일 이후
+        var ics = Ics(
+            $"UID:w\r\nSUMMARY:주간 회의\r\nDTSTART:{monday.ToUniversalTime().AddHours(10):yyyyMMdd'T'HHmmss'Z'}\r\nDURATION:PT1H\r\nRRULE:FREQ=WEEKLY;COUNT=3\r\n",
+            $"UID:x\r\nSUMMARY:취소된 약속\r\nSTATUS:CANCELLED\r\nDTSTART;VALUE=DATE:{D(DateTime.Today.AddDays(2))}\r\n");
+        var cal = new CalendarInfo("https://x/cal/", "내 캘린더", null);
+        var items = CalendarIcs.Expand(ics, cal, DateTime.Today, DateTime.Today.AddDays(60), DateTime.Today.AddDays(400)).ToList();
+        Assert.Equal(3, items.Count);
+        Assert.All(items, i => Assert.Equal("주간 회의", i.Title));
+        Assert.Equal(monday.ToUniversalTime().AddHours(10).ToLocalTime(), items[0].Start);
+        Assert.Equal(TimeSpan.FromHours(1), items[0].End - items[0].Start);
+        Assert.Equal(TimeSpan.FromDays(7), items[1].Start - items[0].Start);
+    }
+}
