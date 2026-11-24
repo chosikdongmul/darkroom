@@ -346,6 +346,8 @@ public class CalendarTests
     {
         public readonly List<(string Method, string Path, string? Auth, string? Depth)> Requests = new();
         public bool RejectAuth;
+        /// <summary>네이버처럼 calendar-query에는 빈 결과를 주고, 목록·multiget으로만 일정을 준다.</summary>
+        public bool QueryEmpty;
         public string Ics = "";
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct)
@@ -353,8 +355,11 @@ public class CalendarTests
             var body = req.Content == null ? "" : await req.Content.ReadAsStringAsync(ct);
             Requests.Add((req.Method.Method, req.RequestUri!.AbsolutePath, req.Headers.Authorization?.ToString(), req.Headers.TryGetValues("Depth", out var d) ? d.First() : null));
             if (RejectAuth) return new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
+            const string empty = """<d:multistatus xmlns:d="DAV:"/>""";
             string xml = (req.Method.Method, req.RequestUri.AbsolutePath) switch
             {
+                ("REPORT", "/calendars/tester/home/") when QueryEmpty && body.Contains("calendar-query") => empty,
+                ("PROPFIND", "/calendars/tester/home/") => """<d:multistatus xmlns:d="DAV:"><d:response><d:href>/calendars/tester/home/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>/calendars/tester/home/1.ics</d:href><d:propstat><d:prop><d:resourcetype/></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>""",
                 ("PROPFIND", "/") => """<d:multistatus xmlns:d="DAV:"><d:response><d:href>/</d:href><d:propstat><d:prop><d:current-user-principal><d:href>/principals/tester/</d:href></d:current-user-principal></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>""",
                 ("PROPFIND", "/principals/tester/") => """<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:response><d:href>/principals/tester/</d:href><d:propstat><d:prop><c:calendar-home-set><d:href>/calendars/tester/</d:href></c:calendar-home-set></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>""",
                 ("PROPFIND", "/calendars/tester/") => """
@@ -377,6 +382,7 @@ public class CalendarTests
     static string Ics(params string[] events) =>
         "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:test\r\n" + string.Concat(events.Select(e => "BEGIN:VEVENT\r\n" + e + "END:VEVENT\r\n")) + "END:VCALENDAR\r\n";
 
+    const string Nl = "\r\n";
     static string D(DateTime d) => d.ToString("yyyyMMdd");
 
     [Fact]
@@ -405,6 +411,20 @@ public class CalendarTests
 
         var json = CalendarProvider.ToJson(ev);
         Assert.Equal(today.AddDays(3).ToString("yyyy-MM-dd"), json.Start); // 하루 종일: 날짜만
+    }
+
+    [Fact]
+    public async Task Falls_back_to_listing_and_multiget_when_query_returns_nothing()
+    {
+        var day = DateTime.Today.AddDays(10);
+        var fake = new FakeCalDav { QueryEmpty = true, Ics = Ics("UID:b" + Nl + "SUMMARY:결혼식" + Nl + $"DTSTART;VALUE=DATE:{D(day)}" + Nl) };
+        var provider = new CalendarProvider(() => null, () => Array.Empty<string>(), Path.GetTempFileName(), new HttpClient(fake));
+        var r = await provider.SyncAsync(new CalendarAccount("caldav.example.com", "tester", "pw"), Array.Empty<string>(), CancellationToken.None);
+        Assert.Null(r.Error);
+        var ev = Assert.Single(r.Items);
+        Assert.Equal("결혼식", ev.Title);
+        Assert.Equal(day, ev.Start);
+        Assert.Contains(fake.Requests, q => q.Method == "PROPFIND" && q.Path == "/calendars/tester/home/");
     }
 
     [Fact]

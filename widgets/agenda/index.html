@@ -64,7 +64,7 @@
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const s = darkroom.settings;
     const minute = Math.floor(nowMs / 60000);
-    const key = `${minute}|${s.days}|${s.showEnded}|${cal ? cal.updatedAt + "|" + cal.ok + "|" + cal.connected : ""}`;
+    const key = `${minute}|${s.showEnded}|${cal ? cal.updatedAt + "|" + cal.ok + "|" + cal.connected : ""}`;
     if (key === lastKey) return;
     lastKey = key;
 
@@ -84,9 +84,8 @@
     $("note").textContent = cal.error ? (upd ? `마지막으로 받은 일정 · ${hm(upd)}` : cal.error) : "";
     $("note").title = cal.error || "";
 
-    const until = new Date(today.getTime() + Number(s.days || 7) * 864e5);
     const items = (cal.events || []).map((e) => ({ ...e, s: parse(e.start), e: parse(e.end) }))
-      .filter((e) => e.s && e.e && e.s < until && (s.showEnded ? e.e > today : e.e > now))
+      .filter((e) => e.s && e.e && (s.showEnded ? e.e > today : e.e > now))
       .sort((a, b) => a.s - b.s || (b.allDay - a.allDay));
 
     // 화면에 들어가는 만큼(약 6줄: 날짜 머리글 포함)
@@ -110,7 +109,7 @@
     if (items.length > shown) rows.push(el("div", "more muted", `그 밖에 ${items.length - shown}개`));
     $("list").replaceChildren(...rows);
     $("empty").hidden = items.length > 0;
-    if (!items.length) $("empty").textContent = s.days === "1" ? "오늘 남은 일정이 없습니다." : "다가오는 일정이 없습니다.";
+    if (!items.length) $("empty").textContent = "다가오는 일정이 없습니다.";
   }
 
   function el(tag, cls, text) { const e = document.createElement(tag); e.className = cls; if (text != null) e.textContent = text; return e; }

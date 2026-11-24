@@ -124,13 +124,77 @@ public sealed class CalDavClient
         return list;
     }
 
-    /// <summary>기간 안에 걸치는 VEVENT의 iCalendar 원문들.</summary>
+    /// <summary>
+    /// 기간 안에 걸치는 VEVENT의 iCalendar 원문들. 서버마다 지원 범위가 달라 차례로 시도한다:
+    /// 1) 기간을 건 calendar-query → 2) 기간 없는 calendar-query → 3) 목록(PROPFIND)을 받아 calendar-multiget → 4) 하나씩 GET.
+    /// 기간 밖 일정은 CalendarIcs.Expand가 걸러 낸다.
+    /// </summary>
     public async Task<List<string>> FetchAsync(CalendarInfo cal, DateTime fromUtc, DateTime toUtc, CancellationToken ct)
     {
         string F(DateTime d) => d.ToUniversalTime().ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
-        var body = $"""<?xml version="1.0" encoding="utf-8"?><c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"><c:time-range start="{F(fromUtc)}" end="{F(toUtc)}"/></c:comp-filter></c:comp-filter></c:filter></c:calendar-query>""";
-        var doc = await SendAsync("REPORT", new Uri(cal.Id), body, 1, ct);
-        return doc.Descendants(C + "calendar-data").Select(e => e.Value).Where(v => v.Contains("BEGIN:VCALENDAR", StringComparison.Ordinal)).ToList();
+        var url = new Uri(cal.Id);
+        var ranged = $"""<?xml version="1.0" encoding="utf-8"?><c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"><c:time-range start="{F(fromUtc)}" end="{F(toUtc)}"/></c:comp-filter></c:comp-filter></c:filter></c:calendar-query>""";
+        var found = await TryQueryAsync(url, ranged, ct);
+        if (found is { Count: > 0 }) { Log.Info($"캘린더 '{cal.Name}': 기간 조회 {found.Count}개"); return found; }
+
+        const string all = """<?xml version="1.0" encoding="utf-8"?><c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"/></c:comp-filter></c:filter></c:calendar-query>""";
+        found = await TryQueryAsync(url, all, ct);
+        if (found is { Count: > 0 }) { Log.Info($"캘린더 '{cal.Name}': 전체 조회 {found.Count}개"); return found; }
+
+        // 일정 파일 목록 → 묶어서 받기(multiget), 안 되면 하나씩
+        const string listBody = """<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/><d:getcontenttype/><d:resourcetype/></d:prop></d:propfind>""";
+        XDocument listing;
+        try { listing = await SendAsync("PROPFIND", url, listBody, 1, ct); }
+        catch (CalDavException ex) when (!ex.AuthFailed) { Log.Warn($"캘린더 '{cal.Name}': 목록 조회 실패 ({ex.Message})"); return []; }
+        var hrefs = listing.Descendants(D + "response")
+            .Where(r => !r.Descendants(D + "collection").Any())
+            .Select(r => r.Element(D + "href")?.Value.Trim())
+            .Where(h => !string.IsNullOrEmpty(h) && new Uri(url, h).AbsoluteUri.TrimEnd('/') != url.AbsoluteUri.TrimEnd('/'))
+            .Select(h => h!).Distinct().ToList();
+        Log.Info($"캘린더 '{cal.Name}': 조회 결과 없음 → 일정 파일 {hrefs.Count}개를 직접 받음");
+        if (hrefs.Count == 0) return [];
+        if (hrefs.Count > MaxFiles) hrefs = hrefs.TakeLast(MaxFiles).ToList();
+
+        var result = new List<string>();
+        foreach (var chunk in hrefs.Chunk(50))
+        {
+            var multiget = """<?xml version="1.0" encoding="utf-8"?><c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:getetag/><c:calendar-data/></d:prop>"""
+                + string.Concat(chunk.Select(h => "<d:href>" + System.Security.SecurityElement.Escape(h) + "</d:href>")) + "</c:calendar-multiget>";
+            var got = await TryQueryAsync(url, multiget, ct);
+            if (got is { Count: > 0 }) { result.AddRange(got); continue; }
+            foreach (var h in chunk)
+            {
+                var text = await TryGetAsync(new Uri(url, h), ct);
+                if (text != null && text.Contains("BEGIN:VCALENDAR", StringComparison.Ordinal)) result.Add(text);
+            }
+        }
+        Log.Info($"캘린더 '{cal.Name}': 직접 받은 일정 파일 {result.Count}개");
+        return result;
+    }
+
+    const int MaxFiles = 1500;
+
+    async Task<List<string>?> TryQueryAsync(Uri url, string body, CancellationToken ct)
+    {
+        try
+        {
+            var doc = await SendAsync("REPORT", url, body, 1, ct);
+            return doc.Descendants(C + "calendar-data").Select(e => e.Value).Where(v => v.Contains("BEGIN:VCALENDAR", StringComparison.Ordinal)).ToList();
+        }
+        catch (CalDavException ex) when (!ex.AuthFailed) { Log.Info($"캘린더 조회 방식 하나 실패: {ex.Message}"); return null; }
+    }
+
+    async Task<string?> TryGetAsync(Uri url, CancellationToken ct)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.Authorization = _auth;
+        try
+        {
+            using var resp = await _http.SendAsync(req, ct);
+            return resp.IsSuccessStatusCode ? await resp.Content.ReadAsStringAsync(ct) : null;
+        }
+        catch (HttpRequestException) { return null; }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested) { return null; }
     }
 }
 
