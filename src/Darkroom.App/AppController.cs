@@ -103,6 +103,9 @@ internal sealed class AppController : IDisposable
         State.Wallpaper ??= new WallpaperSettings();
         if (State.Wallpaper.Validate() is { } wbad) { Log.Warn($"배경화면 설정 오류({wbad}) → 기본값"); State.Wallpaper.IntervalMinutes = 30; State.Wallpaper.Fit = "fill"; }
         if (State.Providers.Validate() is { } bad) { Log.Warn($"환경 설정 오류({bad}) → 기본값"); State.Providers = new ProviderSettings(); }
+        State.Alerts ??= new SunAlertSettings();
+        if (State.Alerts.Validate() != null) State.Alerts = new SunAlertSettings();
+        _phase = CurrentPhase(); // 위젯을 열기 전에 정해 둬야 처음부터 맞는 색으로 뜬다
 
         // DARKROOM_WEBVIEW2_ARGS: 추가 브라우저 인자(디버깅용)
         var extraArgs = Environment.GetEnvironmentVariable("DARKROOM_WEBVIEW2_ARGS");
@@ -125,6 +128,7 @@ internal sealed class AppController : IDisposable
         _wallpaper = new WallpaperRotator(this, Dispatcher);
         _wallpaper.Apply();
         StartUpdateChecks();
+        StartSunTimer();
         SaveStateSoon();
         Changed?.Invoke();
     }
@@ -132,6 +136,7 @@ internal sealed class AppController : IDisposable
     public void Shutdown()
     {
         SaveNow();
+        _sunTimer?.Stop();
         _wallpaper?.Dispose(); // 앱을 꺼도 지금 배경화면은 그대로 둔다(끄기를 눌렀을 때만 되돌림)
         _reloader?.Dispose();
         foreach (var h in _open.Values) h.Dispose();
@@ -386,7 +391,7 @@ internal sealed class AppController : IDisposable
     /// <summary>색 테마 + 글꼴 조합을 합친 것. 글꼴 변수가 테마의 fontUi/fontNum을 덮는다. fontCss는 고른 팩의 @font-face.</summary>
     public object ThemePayload()
     {
-        var t = Themes.GetValueOrDefault(State.Theme) ?? Themes.Values.First();
+        var t = Themes.GetValueOrDefault(EffectiveThemeKey) ?? Themes.Values.First();
         var vars = t.CssVariables();
         var f = CurrentFont;
         if (f != null) foreach (var (k, v) in f.CssVariables()) vars[k] = v;
@@ -405,7 +410,7 @@ internal sealed class AppController : IDisposable
     /// <summary>테마 radius 토큰("18px")을 DIP 숫자로. 위젯 창 영역의 둥근 모서리에 쓴다.</summary>
     public double ThemeCornerRadiusDip()
     {
-        var t = Themes.GetValueOrDefault(State.Theme);
+        var t = Themes.GetValueOrDefault(EffectiveThemeKey);
         var raw = t?.Tokens.GetValueOrDefault("radius")?.Trim() ?? "";
         if (raw.EndsWith("px", StringComparison.OrdinalIgnoreCase)) raw = raw[..^2];
         return double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 18;
@@ -418,6 +423,86 @@ internal sealed class AppController : IDisposable
         foreach (var h in _open.Values) h.PushTheme();
         SaveStateSoon();
         Changed?.Invoke();
+    }
+
+    // =========================================================== 해 시각: 색 자동 전환·골든아워 알림
+    /// <summary>시간 따라 바꿀 때 쓰는 색. 낮에는 사용자가 고른 색.</summary>
+    public static readonly Dictionary<string, string> AutoThemes = new()
+    {
+        ["goldenHour"] = "warm-negative", ["blueHour"] = "blue-hour", ["night"] = "safelight",
+    };
+    string _phase = "day";
+    DispatcherTimer? _sunTimer;
+    readonly HashSet<string> _alerted = new();
+    /// <summary>(제목, 내용) 알림 → 트레이가 Windows 알림으로 띄운다.</summary>
+    public event Action<string, string>? Notify;
+
+    public string EffectiveThemeKey =>
+        State.ThemeAuto && AutoThemes.TryGetValue(_phase, out var k) && Themes.ContainsKey(k) ? k : State.Theme;
+
+    string CurrentPhase()
+    {
+        var s = State.Providers;
+        return SunMath.Phase(SunMath.Position(DateTimeOffset.Now, s.Latitude, s.Longitude).altitude);
+    }
+
+    void StartSunTimer()
+    {
+        _sunTimer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.Background, (_, _) => SunTick(), Dispatcher);
+        SunTick();
+    }
+
+    void SunTick()
+    {
+        var phase = CurrentPhase();
+        if (phase != _phase)
+        {
+            var before = EffectiveThemeKey;
+            _phase = phase;
+            if (EffectiveThemeKey != before) { foreach (var h in _open.Values) h.PushTheme(); Changed?.Invoke(); }
+        }
+
+        var a = State.Alerts;
+        if (!a.Enabled) return;
+        var s = State.Providers;
+        var now = DateTimeOffset.Now;
+        var date = DateOnly.FromDateTime(now.LocalDateTime);
+        var tz = TimeZoneInfo.Local;
+        var high = SunMath.Crossing(date, 6, s.Latitude, s.Longitude, tz);   // 해가 6°를 지나는 때
+        var low = SunMath.Crossing(date, -4, s.Latitude, s.Longitude, tz);   // 해가 -4°를 지나는 때
+        Check("evening", "저녁 골든아워", high.evening, low.evening);
+        if (a.Morning) Check("morning", "아침 골든아워", low.morning, high.morning);
+
+        void Check(string kind, string label, DateTimeOffset? start, DateTimeOffset? end)
+        {
+            if (start is not { } st) return;
+            var key = $"{date:yyyyMMdd}-{kind}";
+            var left = st - now;
+            if (_alerted.Contains(key) || now >= st || left > TimeSpan.FromMinutes(a.LeadMinutes)) return;
+            _alerted.Add(key);
+            var mins = Math.Max(1, (int)Math.Round(left.TotalMinutes));
+            Log.Info($"알림: {label} {mins}분 전");
+            Notify?.Invoke($"{label} {mins}분 전", $"{st:HH:mm}–{end:HH:mm} · {s.LocationName}");
+        }
+    }
+
+    public void SetThemeAuto(bool on)
+    {
+        if (State.ThemeAuto == on) return;
+        var before = EffectiveThemeKey;
+        State.ThemeAuto = on;
+        if (EffectiveThemeKey != before) foreach (var h in _open.Values) h.PushTheme();
+        SaveStateSoon();
+        Changed?.Invoke();
+    }
+
+    public string? SetAlerts(SunAlertSettings next)
+    {
+        if (next.Validate() is { } err) return err;
+        State.Alerts = next;
+        SaveStateSoon();
+        Changed?.Invoke();
+        return null;
     }
 
     // =========================================================== Provider 환경 설정
@@ -737,6 +822,12 @@ internal sealed class AppController : IDisposable
             logs = AppPaths.Logs,
             update = Updates.Snapshot(),
             checkUpdates = State.CheckUpdates,
+        },
+        sunTime = new
+        {
+            themeAuto = State.ThemeAuto,
+            effectiveTheme = Themes.GetValueOrDefault(EffectiveThemeKey)?.Name,
+            alerts = State.Alerts,
         },
     };
 }

@@ -76,6 +76,17 @@ public sealed class WallpaperSettings
 }
 
 /// <summary>%APPDATA%\Darkroom\state.json</summary>
+/// <summary>골든아워 시작 전 알림.</summary>
+public sealed class SunAlertSettings
+{
+    public bool Enabled { get; set; } = true;
+    public int LeadMinutes { get; set; } = 30;
+    /// <summary>아침 골든아워도 알림(기본은 저녁만)</summary>
+    public bool Morning { get; set; }
+
+    public string? Validate() => LeadMinutes is < 5 or > 180 ? "알림 시간은 5~180분" : null;
+}
+
 public sealed class AppState
 {
     public int Version { get; set; } = 1;
@@ -88,6 +99,9 @@ public sealed class AppState
     public bool AllHidden { get; set; }
     /// <summary>새 버전을 자동으로 확인할지(시작 30초 뒤, 그 뒤 12시간마다). 꺼도 Manager에서 직접 확인할 수 있다.</summary>
     public bool CheckUpdates { get; set; } = true;
+    /// <summary>해 위치에 따라 색 테마를 바꾼다(골든아워·블루아워·밤). 낮에는 Theme.</summary>
+    public bool ThemeAuto { get; set; }
+    public SunAlertSettings Alerts { get; set; } = new();
     public Dictionary<string, WidgetState> Widgets { get; set; } = new();
 
     public static AppState? TryLoad(string path)

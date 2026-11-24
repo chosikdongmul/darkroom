@@ -51,6 +51,11 @@
   .hours span:last-child { transform: translateX(-100%); }
   .ranges { font-size: 11.5px; font-weight: 500; color: var(--dr-muted, rgba(235, 235, 245, .56)); }
   .ranges i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); margin-right: 6px; vertical-align: 1px; }
+  .sunset { font-size: 11.5px; font-weight: 500; color: var(--dr-muted, rgba(235, 235, 245, .56)); white-space: nowrap; }
+  .sunset i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; vertical-align: 1px;
+              background: linear-gradient(135deg, var(--gold), var(--blue)); }
+  .sunset b { color: var(--dr-fg, #fff); font-weight: 600; }
+  .sunset b.good { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -64,6 +69,9 @@
     <div class="hours"><span style="left:0">0</span><span style="left:25%">6</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>
   </div>
   <div class="ranges"><i></i>골든아워 <span id="mg">–</span> · <span id="eg">–</span></div>
+  <div class="sunset" id="sunset" title="다음 일몰 무렵의 구름(하층·중층·상층)·비·시정으로 매긴 점수">
+    <i></i>노을 예보 <b id="ssScore">–</b> · <span id="ssLabel"></span> <span id="ssWhen"></span>
+  </div>
 </main>
 <script>
   const $ = (id) => document.getElementById(id);
@@ -156,6 +164,23 @@
   darkroom.subscribe("sun.tomorrow", (t) => { tomorrow = t; lastKey = ""; render(); });
   darkroom.subscribe("sun.phase", (p) => { $("phase").textContent = PHASES[p] || p; $("chip").className = "phase " + p; });
   darkroom.subscribe("time.now", (v) => { nowMs = v.epochMs; render(); });
+
+  // 노을 예보(날씨를 못 받으면 "날씨 정보 없음")
+  let sunsetAt = 0;
+  darkroom.subscribe("weather.sunset", (s) => {
+    sunsetAt = s ? Date.now() : 0;
+    if (!s) { $("ssScore").textContent = "–"; $("ssLabel").textContent = "날씨 정보 없음"; $("ssWhen").textContent = ""; return; }
+    $("ssScore").textContent = `${s.score}점`;
+    $("ssScore").className = s.score >= 75 ? "good" : "";
+    $("ssLabel").textContent = s.label;
+    const isToday = new Date(s.date + "T00:00").toDateString() === new Date().toDateString();
+    $("ssWhen").textContent = `(${isToday ? "오늘" : "내일"} ${s.time})`;
+  });
+  $("ssLabel").textContent = "날씨 정보 없음";
+  // 3시간 넘게 새 예보가 없으면(인터넷 끊김) 오래된 점수를 지운다
+  setInterval(() => {
+    if (sunsetAt && Date.now() - sunsetAt > 3 * 3600e3) { sunsetAt = 0; $("ssScore").textContent = "–"; $("ssScore").className = ""; $("ssLabel").textContent = "날씨 정보 없음"; $("ssWhen").textContent = ""; }
+  }, 60e3);
   darkroom.onSettingsChanged(() => { lastKey = ""; render(); });
 </script>
 </body>

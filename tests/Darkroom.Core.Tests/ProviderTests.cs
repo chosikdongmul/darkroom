@@ -274,4 +274,32 @@ public class BusAndHostTests
         Assert.NotNull(new ProviderSettings { PhotosIntervalSeconds = 1 }.Validate());
         Assert.NotNull(new ProviderSettings { PhotosFolder = @"relative\path" }.Validate());
     }
+
+    [Theory]
+    [InlineData(0, 50, 40, 20000, 0, 90)]     // 중층 구름이 캔버스, 지평선 맑음
+    [InlineData(0, 0, 0, 20000, 0, 35)]       // 구름 없음: 맑지만 밋밋함
+    [InlineData(90, 50, 40, 20000, 0, 18)]    // 하층 구름이 지평선을 막음
+    [InlineData(0, 50, 40, 20000, 80, 36)]    // 비 올 확률 높음
+    [InlineData(0, 100, 100, 3000, 0, 21)]    // 꽉 찬 구름 + 낮은 시정
+    public void Sunset_score(double low, double mid, double high, double vis, double rain, int expected) =>
+        Assert.Equal(expected, WeatherProvider.SunsetScore(low, mid, high, vis, rain));
+
+    [Fact]
+    public void Sunset_forecast_uses_the_next_sunset_hour()
+    {
+        var json = """
+        { "daily": { "sunset": ["2026-11-24T17:16", "2026-11-25T17:16"] },
+          "hourly": { "time": ["2026-11-24T16:00", "2026-11-24T17:00", "2026-11-25T17:00"],
+                      "cloud_cover_low": [0, 10, 80], "cloud_cover_mid": [0, 50, 0], "cloud_cover_high": [0, 20, 0],
+                      "visibility": [24000, 24000, 24000], "precipitation_probability": [0, 0, 0] } }
+        """;
+        var root = JsonDocument.Parse(json).RootElement;
+        var today = DrJson.ToElement(WeatherProvider.SunsetForecast(root, new DateTime(2026, 11, 24, 12, 0, 0)));
+        Assert.Equal("17:16", today.GetProperty("time").GetString());
+        Assert.Equal(90, today.GetProperty("score").GetInt32());
+        // 오늘 일몰이 지나면 내일 일몰
+        var next = DrJson.ToElement(WeatherProvider.SunsetForecast(root, new DateTime(2026, 11, 24, 18, 0, 0)));
+        Assert.Equal("2026-11-25", next.GetProperty("date").GetString());
+        Assert.Equal(7, next.GetProperty("score").GetInt32());
+    }
 }

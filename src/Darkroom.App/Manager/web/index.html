@@ -64,6 +64,19 @@
         <p class="hint">끄면 켜기 전 배경화면으로 돌아갑니다. 긴 변 1200px 미만 사진(작은 캡처 등)은 건너뜁니다.</p>
       </div>
 
+      <h2 class="gap">해 시간</h2>
+      <div class="env">
+        <label class="switch"><input type="checkbox" id="alertOn"><span></span>골든아워 알림</label>
+        <div class="two">
+          <label>미리 알림
+            <select id="alertLead"><option value="10">10분 전</option><option value="20">20분 전</option><option value="30">30분 전</option><option value="60">1시간 전</option></select>
+          </label>
+          <label class="switch tight"><input type="checkbox" id="alertMorning"><span></span>아침도</label>
+        </div>
+        <label class="switch"><input type="checkbox" id="themeAuto"><span></span>시간 따라 색 바꾸기</label>
+        <p class="hint" id="themeAutoHint">골든아워 Warm Negative · 블루아워 Blue Hour · 밤 Safelight Red, 낮에는 위에서 고른 색.</p>
+      </div>
+
       <h2 class="gap">환경</h2>
       <form id="env" class="env">
         <label>위치 이름 <input id="locName" maxlength="60"></label>

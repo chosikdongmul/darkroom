@@ -29,8 +29,12 @@ internal sealed class TrayIcon : IDisposable
         _icon.MouseClick += (_, e) => { if (e.Button == WinForms.MouseButtons.Left) openManager(); };
         _icon.BalloonTipClicked += (_, _) => openManager();
         _app.Updates.Found += OnUpdateFound;
+        _app.Notify += OnNotify;
         Build(openManager, exit);
     }
+
+    void OnNotify(string title, string text) => _app.Dispatcher.BeginInvoke(() =>
+        _icon.ShowBalloonTip(10000, title, text, WinForms.ToolTipIcon.None));
 
     void OnUpdateFound(string version) => _app.Dispatcher.BeginInvoke(() =>
         _icon.ShowBalloonTip(8000, "Darkroom 업데이트", $"새 버전 {version}이 있습니다. 눌러서 Manager에서 업데이트하세요.", WinForms.ToolTipIcon.Info));
@@ -132,6 +136,7 @@ internal sealed class TrayIcon : IDisposable
     public void Dispose()
     {
         _app.Updates.Found -= OnUpdateFound;
+        _app.Notify -= OnNotify;
         _icon.Visible = false;
         _icon.Dispose();
         _menu.Dispose();

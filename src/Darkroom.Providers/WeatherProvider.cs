@@ -8,6 +8,7 @@ namespace Darkroom.Providers;
 /// 이 데이터를 구독하는 위젯은 manifest에 "network" 권한이 있어야 한다(위치가 외부로 전송되므로).
 ///   weather.current = { temperature, apparentTemperature, humidity, windSpeed, cloudCover, code, description, isDay, time }
 ///   weather.daily   = [{ date, max, min, code, description, sunrise, sunset }] (3일)
+///   weather.sunset  = { date, time, score, label, low, mid, high } 다음 일몰의 노을 점수(없으면 null)
 ///   weather.status  = { ok, updatedAt, error, location }
 /// </summary>
 public sealed class WeatherProvider(Func<ProviderSettings> settings, HttpClient? http = null) : IDataProvider
@@ -41,7 +42,8 @@ public sealed class WeatherProvider(Func<ProviderSettings> settings, HttpClient?
         var url = FormattableString.Invariant(
             $"https://api.open-meteo.com/v1/forecast?latitude={coords.Item1}&longitude={coords.Item2}") +
             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,cloud_cover,is_day" +
-            "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset&timezone=auto&forecast_days=3";
+            "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset" +
+            "&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility,precipitation_probability&timezone=auto&forecast_days=3";
         try
         {
             using var resp = await _http.GetAsync(url, ct);
@@ -50,6 +52,7 @@ public sealed class WeatherProvider(Func<ProviderSettings> settings, HttpClient?
             Parse(doc.RootElement, out var current, out var daily);
             bus.Publish("weather.current", current);
             bus.Publish("weather.daily", daily);
+            bus.Publish("weather.sunset", SunsetForecast(doc.RootElement, DateTime.Now));
             bus.Publish("weather.status", new { ok = true, updatedAt = DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:sszzz"), error = (string?)null, location = s.LocationName });
             _lastOk = true;
         }
@@ -97,6 +100,51 @@ public sealed class WeatherProvider(Func<ProviderSettings> settings, HttpClient?
             });
         }
         daily = list;
+    }
+
+    /// <summary>다음 일몰 시각의 하늘로 매긴 노을 점수. 시간별 예보가 없으면 null.
+    /// { date, time, score(0~100), label, low, mid, high }</summary>
+    public static object? SunsetForecast(JsonElement root, DateTime now)
+    {
+        if (!root.TryGetProperty("hourly", out var h) || !root.TryGetProperty("daily", out var d)) return null;
+        DateTime? sunset = null;
+        foreach (var s in d.GetProperty("sunset").EnumerateArray())
+            if (DateTime.TryParse(s.GetString(), out var t) && t > now) { sunset = t; break; }
+        if (sunset is not { } ss) return null;
+
+        var times = h.GetProperty("time").EnumerateArray().Select(x => DateTime.TryParse(x.GetString(), out var t) ? t : DateTime.MinValue).ToList();
+        int i = -1; double best = double.MaxValue;
+        for (int k = 0; k < times.Count; k++)
+        {
+            double diff = Math.Abs((times[k] - ss).TotalMinutes);
+            if (diff < best) { best = diff; i = k; }
+        }
+        if (i < 0 || best > 90) return null;
+
+        static double At(JsonElement h, string name, int i, double fallback) =>
+            h.TryGetProperty(name, out var a) && a.GetArrayLength() > i && a[i].ValueKind == JsonValueKind.Number ? a[i].GetDouble() : fallback;
+        double low = At(h, "cloud_cover_low", i, 0), mid = At(h, "cloud_cover_mid", i, 0), high = At(h, "cloud_cover_high", i, 0);
+        int score = SunsetScore(low, mid, high, At(h, "visibility", i, 20000), At(h, "precipitation_probability", i, 0));
+        return new
+        {
+            date = ss.ToString("yyyy-MM-dd"),
+            time = ss.ToString("HH:mm"),
+            score,
+            label = score >= 75 ? "기대해도 좋음" : score >= 50 ? "괜찮음" : score >= 25 ? "평범" : "어려움",
+            low, mid, high,
+        };
+    }
+
+    /// <summary>노을 점수(0~100). 중·상층 구름이 적당히(30~70%) 있으면 하늘이 물들 캔버스가 되고,
+    /// 하층 구름·비·낮은 시정은 지평선의 빛을 막는다.</summary>
+    public static int SunsetScore(double low, double mid, double high, double visibilityM, double precipProb)
+    {
+        double canvas = Math.Max(mid, high);
+        double s = canvas switch { < 10 => 35, < 30 => 60, <= 70 => 90, <= 90 => 60, _ => 30 };
+        s *= low switch { > 70 => 0.2, > 40 => 0.5, > 20 => 0.8, _ => 1 };
+        s *= precipProb switch { > 60 => 0.4, > 30 => 0.7, _ => 1 };
+        if (visibilityM < 5000) s *= 0.7;
+        return (int)Math.Round(Math.Clamp(s, 0, 100));
     }
 
     /// <summary>WMO 날씨 코드 → 한국어</summary>

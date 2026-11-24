@@ -16,6 +16,7 @@ Windows 10/11 x64, Microsoft Edge WebView2 런타임(Windows 11은 기본 포함
 - 바탕화면 아이콘 위에 고정(Win+D에도 유지), 드래그와 스냅
 - 색 테마 8가지, 글꼴 조합 7가지(모두 내장)
 - 사진 폴더로 Windows 배경화면 바꾸기
+- 골든아워 알림, 해 위치에 따라 바뀌는 색 테마, 노을 예보(구름·비·시정으로 매긴 점수)
 - 위젯: 노출값 시계(지금 해 위치·날씨에 맞는 노출), 골든아워, 필름 카운터, 히스토그램(배경화면 기준), 필름 프레임, 시스템, 배터리, 해, 날씨, 사진, 지금 재생 중
 
 트레이 아이콘을 누르면 Manager가 열린다. 설정과 로그는 `%APPDATA%\Darkroom`에 있다.
@@ -87,7 +88,7 @@ CSS 변수: `--dr-bg` `--dr-fg` `--dr-muted` `--dr-faint` `--dr-accent` `--dr-in
 | `system.cpu` `system.ram` `system.net` `system.disks` | 사용률, 메모리, 네트워크 속도, 디스크 |
 | `battery.status` | `{ hasBattery, percent, charging, pluggedIn, remainingMinutes, saver }` |
 | `sun.today` `sun.tomorrow` `sun.position` `sun.phase` | 일출·일몰·골든/블루아워, 고도·방위 |
-| `weather.current` `weather.daily` | Open-Meteo (`network` 권한 필요) |
+| `weather.current` `weather.daily` `weather.sunset` | Open-Meteo, 노을 예보 점수 (`network` 권한 필요) |
 | `wallpaper.current` `wallpaper.histogram` | 지금 배경화면의 이름·EXIF·히스토그램 |
 | `photos.current` `photos.histogram` `photos.stats` | 사진 폴더의 사진, 히스토그램, 촬영 통계 |
 | `media.nowPlaying` `media.artwork` | 재생 중인 미디어 |

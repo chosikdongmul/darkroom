@@ -189,6 +189,30 @@ $("#env").addEventListener("submit", (e) => {
 $("#photosFolder").addEventListener("change", () => { sendProviders(); toast("사진 폴더를 바꿨습니다"); });
 $("#pickFolder").addEventListener("click", () => send({ type: "pickPhotosFolder" }));
 
+// ---------- 오른쪽: 해 시간(골든아워 알림·색 자동 전환) ----------
+function renderSunTime() {
+  const s = state.sunTime;
+  $("#alertOn").checked = s.alerts.enabled;
+  const lead = String(s.alerts.leadMinutes);
+  if (![...$("#alertLead").options].some((o) => o.value === lead))
+    $("#alertLead").append(el("option", { value: lead }, `${lead}분 전`)); // 목록에 없는 값(직접 고친 설정)도 보이게
+  $("#alertLead").value = lead;
+  $("#alertMorning").checked = s.alerts.morning;
+  $("#alertLead").disabled = $("#alertMorning").disabled = !s.alerts.enabled;
+  $("#themeAuto").checked = s.themeAuto;
+  $("#themeAutoHint").textContent = "골든아워 Warm Negative · 블루아워 Blue Hour · 밤 Safelight Red, 낮에는 위에서 고른 색."
+    + (s.themeAuto && s.effectiveTheme ? ` 지금: ${s.effectiveTheme}` : "");
+}
+function sendAlerts() {
+  send({ type: "setAlerts", value: {
+    enabled: $("#alertOn").checked, leadMinutes: Number($("#alertLead").value), morning: $("#alertMorning").checked,
+  } });
+}
+$("#alertOn").addEventListener("change", sendAlerts);
+$("#alertLead").addEventListener("change", sendAlerts);
+$("#alertMorning").addEventListener("change", sendAlerts);
+$("#themeAuto").addEventListener("change", (e) => send({ type: "setThemeAuto", value: e.target.checked }));
+
 // ---------- 오른쪽: 배경화면 바꾸기 ----------
 function renderWallpaper() {
   const w = state.wallpaper;
@@ -260,6 +284,7 @@ function render() {
   renderDetail();
   renderLayouts();
   renderWallpaper();
+  renderSunTime();
   renderEnv();
   renderApp();
 }

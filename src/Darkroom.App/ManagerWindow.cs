@@ -121,6 +121,11 @@ internal sealed class ManagerWindow : Window
                 case "openLogs": _app.OpenLogs(); break;
                 case "checkUpdate": await _app.CheckUpdatesAsync(); break;
                 case "setCheckUpdates": _app.SetCheckUpdates(B("value")); break;
+                case "setThemeAuto": _app.SetThemeAuto(B("value")); break;
+                case "setAlerts":
+                    var al = V().Deserialize<SunAlertSettings>(DrJson.Options);
+                    error = al == null ? "알림 설정 형식 오류" : _app.SetAlerts(al);
+                    break;
                 case "installUpdate": await _app.InstallUpdateAsync(); break;
             }
         }

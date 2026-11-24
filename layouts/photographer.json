@@ -3,8 +3,8 @@
   "theme": "darkroom-gray",
   "widgets": {
     "darkroom.golden-hour":  { "x": 2310, "y": 18,  "settings": {} },
-    "darkroom.clock":        { "x": 2310, "y": 291, "settings": {} },
-    "darkroom.film-counter": { "x": 2310, "y": 522, "settings": {} },
-    "darkroom.histogram":    { "x": 2310, "y": 750, "settings": {} }
+    "darkroom.clock":        { "x": 2310, "y": 318, "settings": {} },
+    "darkroom.film-counter": { "x": 2310, "y": 549, "settings": {} },
+    "darkroom.histogram":    { "x": 2310, "y": 777, "settings": {} }
   }
 }
