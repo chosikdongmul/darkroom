@@ -49,7 +49,8 @@ internal static class Native
     [DllImport("user32", CharSet = CharSet.Unicode, SetLastError = true)] public static extern ushort RegisterClassEx(ref WNDCLASSEX wc);
     [DllImport("user32", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern IntPtr CreateWindowEx(int exStyle, string cls, string name, int style, int x, int y, int w, int h, IntPtr parent, IntPtr menu, IntPtr inst, IntPtr param);
-    [DllImport("user32")] public static extern IntPtr DefWindowProc(IntPtr h, uint m, IntPtr w, IntPtr l);
+    // 유니코드 창 클래스이므로 DefWindowProcW여야 한다(A판이면 WM_NCCREATE에서 창 제목이 첫 글자만 남는다)
+    [DllImport("user32", CharSet = CharSet.Unicode)] public static extern IntPtr DefWindowProc(IntPtr h, uint m, IntPtr w, IntPtr l);
     [DllImport("user32")] public static extern bool DestroyWindow(IntPtr h);
     [DllImport("user32")] public static extern bool IsWindow(IntPtr h);
     [DllImport("user32")] public static extern bool ShowWindow(IntPtr h, int cmd);
