@@ -32,6 +32,28 @@ public sealed partial class Theme
         return vars;
     }
 
+    [GeneratedRegex(@"^#[0-9a-fA-F]{6}$")]
+    private static partial Regex HexColor();
+
+    [GeneratedRegex(@"^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*[\d.]+\s*\)$")]
+    private static partial Regex Rgba();
+
+    public static bool IsHexColor(string? s) => s != null && HexColor().IsMatch(s);
+
+    /// <summary>사용자가 고른 강조색·카드 진하기를 덮은 사본. 값이 없거나 형식이 틀리면 테마 그대로.</summary>
+    public Theme WithCustom(ThemeCustom? c)
+    {
+        if (c == null || (c.Accent == null && c.CardAlpha == null)) return this;
+        var tokens = new Dictionary<string, string>(Tokens);
+        if (IsHexColor(c.Accent)) tokens["accent"] = c.Accent!.ToLowerInvariant();
+        if (c.CardAlpha is double a && tokens.TryGetValue("bg", out var bg) && Rgba().Match(bg) is { Success: true } m)
+        {
+            a = Math.Clamp(a, ThemeCustom.MinAlpha, ThemeCustom.MaxAlpha);
+            tokens["bg"] = $"rgba({m.Groups[1].Value},{m.Groups[2].Value},{m.Groups[3].Value},{a.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
+        }
+        return new Theme { Name = Name, Key = Key, Tokens = tokens };
+    }
+
     public static Theme Load(string path)
     {
         var t = DrJson.Read<Theme>(path);

@@ -176,3 +176,35 @@ details.advanced.inner summary { margin-bottom: 6px; }
 .hint.err, #calMsg.err { color: var(--danger); }
 #calSection.flash { animation: flash 1.6s ease-out; border-radius: 6px; }
 @keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 35%, transparent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 35%, transparent); } 100% { background: transparent; box-shadow: none; } }
+
+/* 색 테마 고르기 */
+.theme-field { position: relative; }
+.theme-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--raised); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 3px 8px 3px 4px; font-weight: 500; }
+.theme-btn .caret { color: var(--muted); font-size: 10px; }
+.swatch-card { display: inline-flex; align-items: center; gap: 6px; padding: 3px 7px; border-radius: var(--sw-radius, 8px); flex: none;
+  background: linear-gradient(var(--sw-bg), var(--sw-bg)), linear-gradient(135deg, #d8d0c4, #6b7884 55%, #262b31);
+  color: var(--sw-fg); font: 600 11px/1.2 "Pretendard Variable", Pretendard, sans-serif; font-variant-numeric: tabular-nums; }
+.swatch-card .sw-bar { width: 14px; height: 4px; border-radius: 2px; background: var(--sw-accent); }
+.theme-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 20; width: 540px; padding: 12px; border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--line); box-shadow: 0 12px 32px rgba(0, 0, 0, .45); color: var(--fg); white-space: normal; }
+.theme-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.theme-tile { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 6px; border-radius: 10px; background: transparent;
+  border: 1px solid transparent; color: var(--fg); font-weight: 400; }
+.theme-tile:hover { background: var(--raised); filter: none; }
+.theme-tile.on { border-color: var(--accent); background: var(--raised); }
+.theme-tile .swatch-card { justify-content: space-between; padding: 10px; font-size: 14px; }
+.theme-tile .swatch-card .sw-bar { width: 24px; height: 5px; }
+.tile-name { font-size: 11px; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme-tile.on .tile-name { color: var(--fg); }
+.theme-custom { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.tc-row { display: flex; align-items: center; gap: 10px; }
+.tc-row input[type=range] { flex: 1; }
+.tc-label { width: 72px; flex: none; color: var(--muted); font-size: 12px; }
+.accent-chip { width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--c, #888); border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--line); position: relative; flex: none; }
+.accent-chip.on { box-shadow: 0 0 0 2px var(--fg); }
+.accent-chip.default { width: auto; padding: 0 9px; border-radius: 11px; font-size: 11px; color: #1c1c1c; font-weight: 600; }
+.accent-chip.custom { display: inline-grid; place-items: center; cursor: pointer; color: #fff; font-weight: 700; font-size: 13px;
+  background: var(--c, conic-gradient(#ff5a4a, #ffd54a, #7ed957, #4fc3f7, #b388ff, #ff6ec7, #ff5a4a)); }
+.accent-chip.custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }

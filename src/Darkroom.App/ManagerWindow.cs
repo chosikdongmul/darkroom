@@ -136,6 +136,10 @@ internal sealed class ManagerWindow : Window
                 case "setSetting": error = _app.SetSetting(S("id"), S("key"), V()); break;
                 case "setTheme": _app.SetTheme(S("key")); break;
                 case "setFont": _app.SetFont(S("key")); break;
+                case "setThemeCustom":
+                    var tc = V().Deserialize<ThemeCustom>(DrJson.Options);
+                    error = tc == null ? "색 설정 형식 오류" : _app.SetThemeCustom(tc);
+                    break;
                 case "setAllLocked": _app.SetAllLocked(B("value")); break;
                 case "setAllHidden": _app.SetAllHidden(B("value")); break;
                 case "saveLayout": _app.SaveLayout(S("name")); break;
@@ -163,6 +167,7 @@ internal sealed class ManagerWindow : Window
                 case "openLogs": _app.OpenLogs(); break;
                 case "checkUpdate": await _app.CheckUpdatesAsync(); break;
                 case "setCheckUpdates": _app.SetCheckUpdates(B("value")); break;
+                case "setPauseOnFullscreen": _app.SetPauseOnFullscreen(B("value")); break;
                 case "setThemeAuto": _app.SetThemeAuto(B("value")); break;
                 case "setAlerts":
                     var al = V().Deserialize<SunAlertSettings>(DrJson.Options);

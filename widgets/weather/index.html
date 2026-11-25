@@ -6,6 +6,7 @@
 <style>
   .top { display: flex; justify-content: space-between; align-items: baseline; }
   .top .muted { font-size: 11px; }
+  .top .rain { color: var(--dr-blue, #6e93e6); font-weight: 600; }
   .now { display: flex; align-items: center; gap: 14px; }
   .temp { font: 600 38px/1 var(--dr-font-num, sans-serif); letter-spacing: -0.03em; }
   .extra { font-size: 11px; }
@@ -35,11 +36,21 @@
       return el;
     }));
   });
-  darkroom.subscribe("weather.status", (s) => {
-    $("loc").textContent = `날씨 · ${s.location}`;
-    $("status").textContent = s.ok ? `${s.updatedAt.slice(11, 16)} 갱신` : "갱신 실패";
-    $("status").title = s.error || "";
-  });
+  // 오른쪽 위: 3시간 안에 비·눈 소식이 있으면 그것, 없으면 갱신 시각
+  let lastStatus = null, rain = null;
+  function showTop() {
+    const r = $("status");
+    r.classList.toggle("rain", !!rain);
+    if (rain) {
+      r.textContent = rain.now ? `☔ 지금 ${rain.kind}` : `☔ ${rain.startsAt}쯤 ${rain.kind} ${rain.probability}%`;
+      r.title = "3시간 안의 비·눈 예보";
+    } else if (lastStatus) {
+      r.textContent = lastStatus.ok ? `${lastStatus.updatedAt.slice(11, 16)} 갱신` : "갱신 실패";
+      r.title = lastStatus.error || "";
+    }
+  }
+  darkroom.subscribe("weather.status", (s) => { lastStatus = s; $("loc").textContent = `날씨 · ${s.location}`; showTop(); });
+  darkroom.subscribe("weather.rain", (r) => { rain = r; showTop(); });
 </script>
 </body>
 </html>

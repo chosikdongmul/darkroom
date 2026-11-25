@@ -2,7 +2,7 @@
   "id": "darkroom.sample.weather",
   "name": "날씨",
   "description": "지금 날씨와 3일 예보",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "size": { "width": 360, "height": 180, "inset": 12 },
   "windowMode": "desktop",
   "subscribe": ["weather.*"],

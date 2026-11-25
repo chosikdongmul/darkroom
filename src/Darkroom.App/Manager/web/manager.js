@@ -246,8 +246,7 @@ function renderLayouts() {
 
 // ---------- 머리글 ----------
 function renderHeader() {
-  const sel = $("#theme");
-  sel.replaceChildren(...state.themes.map((t) => el("option", { value: t.key, selected: t.key === state.theme }, t.name)));
+  renderThemePicker();
   $("#font").replaceChildren(...state.fonts.map((f) =>
     el("option", { value: f.key, selected: f.key === state.font, title: f.description || "" }, f.description ? `${f.name} — ${f.description}` : f.name)));
   $("#allLocked").checked = state.allLocked;
@@ -356,6 +355,7 @@ function renderSunTime() {
     $("#alertLead").append(el("option", { value: lead }, `${lead}분 전`)); // 목록에 없는 값(직접 고친 설정)도 보이게
   $("#alertLead").value = lead;
   $("#alertMorning").checked = s.alerts.morning;
+  $("#alertRain").checked = s.alerts.rain;
   $("#alertLead").disabled = $("#alertMorning").disabled = !s.alerts.enabled;
   $("#themeAuto").checked = s.themeAuto;
   $("#themeAutoHint").textContent = "골든아워 Warm Negative · 블루아워 Blue Hour · 밤 Safelight Red, 낮에는 위에서 고른 색."
@@ -363,12 +363,13 @@ function renderSunTime() {
 }
 function sendAlerts() {
   send({ type: "setAlerts", value: {
-    enabled: $("#alertOn").checked, leadMinutes: Number($("#alertLead").value), morning: $("#alertMorning").checked,
+    enabled: $("#alertOn").checked, leadMinutes: Number($("#alertLead").value), morning: $("#alertMorning").checked, rain: $("#alertRain").checked,
   } });
 }
 $("#alertOn").addEventListener("change", sendAlerts);
 $("#alertLead").addEventListener("change", sendAlerts);
 $("#alertMorning").addEventListener("change", sendAlerts);
+$("#alertRain").addEventListener("change", sendAlerts);
 $("#themeAuto").addEventListener("change", (e) => send({ type: "setThemeAuto", value: e.target.checked }));
 
 // ---------- 오른쪽: 배경화면 바꾸기 ----------
@@ -397,6 +398,7 @@ $("#wallNext").addEventListener("click", () => send({ type: "nextWallpaper" }));
 function renderApp() {
   $("#autoStart").checked = state.app.autoStart;
   $("#checkUpdates").checked = state.app.checkUpdates;
+  $("#pauseFull").checked = state.app.pauseOnFullscreen;
   $("#appVersion").textContent = `Darkroom ${state.app.version}`;
   const u = state.app.update || {};
   const btn = $("#updateBtn");
@@ -424,6 +426,7 @@ let updateBarDismissed = false;
 $("#updateBarBtn").addEventListener("click", () => send({ type: "installUpdate" }));
 $("#updateBarLater").addEventListener("click", () => { updateBarDismissed = true; $("#updateBar").hidden = true; });
 $("#checkUpdates").addEventListener("change", (e) => send({ type: "setCheckUpdates", value: e.target.checked }));
+$("#pauseFull").addEventListener("change", (e) => send({ type: "setPauseOnFullscreen", value: e.target.checked }));
 $("#updateBtn").addEventListener("click", () => {
   const u = (state && state.app.update) || {};
   send({ type: u.state === "available" ? "installUpdate" : "checkUpdate" });
@@ -448,7 +451,55 @@ function render() {
   renderApp();
 }
 
-$("#theme").addEventListener("change", (e) => send({ type: "setTheme", key: e.target.value }));
+// ---------- 색 테마 고르기: 테마마다 카드 색·글자색·강조색을 작은 카드로 보여 준다 ----------
+const ACCENTS = ["#ff9f45", "#ff5a4a", "#ff6ec7", "#b388ff", "#6e9bff", "#4fc3f7", "#4dd0b5", "#7ed957", "#ffd54a", "#ffffff"];
+const alphaOf = (rgba) => { const m = /rgba?\(([^)]*)\)/.exec(rgba || ""); const p = m ? m[1].split(",") : []; return p.length > 3 ? Number(p[3]) : 1; };
+const withAlpha = (rgba, a) => { const m = /rgba?\(([^)]*)\)/.exec(rgba || ""); if (!m) return rgba; return `rgba(${m[1].split(",").slice(0, 3).join(",")},${a})`; };
+
+function themeSwatch(t, custom) {
+  const tok = t.tokens;
+  const accent = (custom && custom.accent) || tok.accent;
+  const bg = custom && custom.cardAlpha != null ? withAlpha(tok.bg, custom.cardAlpha) : tok.bg;
+  return el("span", { class: "swatch-card", style: `--sw-bg:${bg};--sw-fg:${tok.fg};--sw-accent:${accent};--sw-radius:${Math.min(parseInt(tok.radius) || 14, 12)}px` },
+    el("span", { class: "sw-time" }, "12:30"), el("span", { class: "sw-bar" }));
+}
+
+function renderThemePicker() {
+  const cur = state.themes.find((t) => t.key === state.theme) || state.themes[0];
+  const custom = state.themeCustom || {};
+  $("#themeBtn").replaceChildren(themeSwatch(cur, custom), el("span", {}, cur ? cur.name : ""), el("span", { class: "caret" }, "▾"));
+  $("#themeGrid").replaceChildren(...state.themes.map((t) => el("button", {
+    type: "button", class: "theme-tile" + (t.key === state.theme ? " on" : ""), title: t.name,
+    onclick: () => send({ type: "setTheme", key: t.key }),
+  }, themeSwatch(t), el("span", { class: "tile-name" }, t.name))));
+  // 강조색: 테마 기본 + 고른 색들 + 직접 고르기
+  const pick = (accent) => send({ type: "setThemeCustom", value: { accent, cardAlpha: custom.cardAlpha ?? null } });
+  const own = custom.accent && !ACCENTS.includes(custom.accent);
+  const colorInput = el("input", { type: "color", value: custom.accent || (cur && cur.tokens.accent) || "#ff9f45", onchange: (e) => pick(e.target.value) });
+  $("#accentChips").replaceChildren(
+    el("button", { type: "button", class: "accent-chip default" + (!custom.accent ? " on" : ""), title: "테마 기본 강조색", onclick: () => pick(null),
+      style: `--c:${cur ? cur.tokens.accent : "#888"}` }, "기본"),
+    ...ACCENTS.map((c) => el("button", { type: "button", class: "accent-chip" + (custom.accent === c ? " on" : ""), title: c, style: `--c:${c}`, onclick: () => pick(c) })),
+    el("label", { class: "accent-chip custom" + (own ? " on" : ""), title: "직접 고르기", style: own ? `--c:${custom.accent}` : "" }, "+", colorInput));
+  // 카드 진하기
+  const a = custom.cardAlpha ?? alphaOf(cur && cur.tokens.bg);
+  if (document.activeElement !== $("#cardAlpha")) $("#cardAlpha").value = Math.round(a * 100);
+  $("#cardAlphaOut").textContent = `${Math.round(a * 100)}%` + (custom.cardAlpha == null ? " (테마 기본)" : "");
+  $("#cardAlphaReset").disabled = custom.cardAlpha == null;
+}
+$("#themeBtn").addEventListener("click", (e) => { e.stopPropagation(); $("#themePop").hidden = !$("#themePop").hidden; });
+$("#themePop").addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("click", () => { $("#themePop").hidden = true; });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#themePop").hidden = true; });
+$("#cardAlpha").addEventListener("input", (e) => { $("#cardAlphaOut").textContent = `${e.target.value}%`; });
+$("#cardAlpha").addEventListener("change", (e) => {
+  const custom = (state && state.themeCustom) || {};
+  send({ type: "setThemeCustom", value: { accent: custom.accent ?? null, cardAlpha: Number(e.target.value) / 100 } });
+});
+$("#cardAlphaReset").addEventListener("click", () => {
+  const custom = (state && state.themeCustom) || {};
+  send({ type: "setThemeCustom", value: { accent: custom.accent ?? null, cardAlpha: null } });
+});
 $("#font").addEventListener("change", (e) => { send({ type: "setFont", key: e.target.value }); toast("글꼴을 바꿨습니다"); });
 $("#allLocked").addEventListener("change", (e) => send({ type: "setAllLocked", value: e.target.checked }));
 $("#allHidden").addEventListener("change", (e) => send({ type: "setAllHidden", value: e.target.checked }));

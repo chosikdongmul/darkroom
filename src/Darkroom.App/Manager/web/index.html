@@ -10,9 +10,20 @@
   <header>
     <div class="brand"><span class="mark"></span>Darkroom <em>Manager</em></div>
     <div class="global">
-      <label class="field">색
-        <select id="theme"></select>
-      </label>
+      <div class="field theme-field">색
+        <button type="button" id="themeBtn" class="theme-btn" aria-haspopup="true"></button>
+        <div id="themePop" class="theme-pop" hidden>
+          <div class="theme-grid" id="themeGrid"></div>
+          <div class="theme-custom">
+            <div class="tc-row"><span class="tc-label">강조색</span><div class="chips" id="accentChips"></div></div>
+            <div class="tc-row"><span class="tc-label">카드 진하기</span>
+              <input type="range" id="cardAlpha" min="35" max="98" step="1">
+              <span class="sub" id="cardAlphaOut"></span>
+              <button type="button" class="ghost small" id="cardAlphaReset">테마 기본</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <label class="field">글꼴
         <select id="font"></select>
       </label>
@@ -94,7 +105,7 @@
         </div>
       </div>
 
-      <h2 class="gap">해 시간</h2>
+      <h2 class="gap">알림 · 해 시간</h2>
       <div class="env">
         <label class="switch"><input type="checkbox" id="alertOn"><span></span>골든아워 알림</label>
         <div class="two">
@@ -103,6 +114,7 @@
           </label>
           <label class="switch tight"><input type="checkbox" id="alertMorning"><span></span>아침도</label>
         </div>
+        <label class="switch" title="3시간 안에 비·눈 소식(강수확률 60% 이상)이 있으면 Windows 알림. 날씨를 받으려고 위치가 Open-Meteo로 전송됩니다."><input type="checkbox" id="alertRain"><span></span>비·눈 예보 알림</label>
         <label class="switch"><input type="checkbox" id="themeAuto"><span></span>시간 따라 색 바꾸기</label>
         <p class="hint" id="themeAutoHint">골든아워 Warm Negative · 블루아워 Blue Hour · 밤 Safelight Red, 낮에는 위에서 고른 색.</p>
       </div>
@@ -135,6 +147,7 @@
       <div class="env">
         <label class="switch"><input type="checkbox" id="autoStart"><span></span>Windows 시작 시 실행</label>
         <label class="switch"><input type="checkbox" id="checkUpdates"><span></span>새 버전 자동 확인</label>
+        <label class="switch" title="게임·영상을 전체 화면으로 볼 때 그 화면의 위젯 그리기를 멈춰 CPU·GPU를 아낍니다"><input type="checkbox" id="pauseFull"><span></span>전체 화면 앱 쓰는 동안 위젯 멈추기</label>
         <div class="inline"><button type="button" class="ghost small" id="openLogs">로그 폴더 열기</button><span class="hint" id="appVersion"></span></div>
         <div class="inline"><button type="button" class="ghost small" id="updateBtn">업데이트 확인</button><span class="hint" id="updateText"></span></div>
       </div>

@@ -71,7 +71,8 @@ internal sealed class WidgetHost : IDisposable
         ctl.ShouldDetectMonitorScaleChanges = false;
         ctl.RasterizationScale = _win!.Scale;
         UpdateBounds();
-        ctl.IsVisible = !_app.State.AllHidden;
+        _hidden = _app.State.AllHidden;
+        ctl.IsVisible = !_hidden && !_paused;
 
         var core = ctl.CoreWebView2;
         // 위젯은 늘 떠 있고 상호작용이 적어 저메모리 모드로 둔다. DARKROOM_MEMORY_NORMAL=1이면 끈다.
@@ -363,10 +364,29 @@ internal sealed class WidgetHost : IDisposable
         Post(new { type = "window", window = WindowPayload() });
     }
 
+    bool _hidden, _paused;
+
     public void SetHidden(bool hidden)
     {
+        _hidden = hidden;
         _win?.SetVisible(!hidden);
-        if (_ctl != null) _ctl.IsVisible = !hidden; // 숨기면 렌더링도 멈춘다
+        ApplyRendering();
+    }
+
+    /// <summary>전체 화면 앱이 이 위젯의 모니터를 덮는 동안 그리기를 멈춘다(창은 그대로, 보이지 않으니 화면 변화 없음).</summary>
+    public bool Paused => _paused;
+    public void SetPaused(bool paused)
+    {
+        if (_paused == paused) return;
+        _paused = paused;
+        ApplyRendering();
+    }
+
+    void ApplyRendering()
+    {
+        if (_ctl == null || _closed) return;
+        try { _ctl.IsVisible = !_hidden && !_paused; } // 숨기면 렌더링·애니메이션이 멈춘다
+        catch (Exception ex) when (ex is COMException or InvalidOperationException) { }
     }
 
     // ---------- 창 ----------

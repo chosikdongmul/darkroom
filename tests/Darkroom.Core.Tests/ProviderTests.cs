@@ -460,3 +460,45 @@ public class CalendarTests
         Assert.Equal(TimeSpan.FromDays(7), items[1].Start - items[0].Start);
     }
 }
+
+public class RainForecastTests
+{
+    static JsonElement Hourly(DateTime start, int currentCode, params (int prob, double mm, int code)[] hours)
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            current = new { weather_code = currentCode },
+            hourly = new
+            {
+                time = hours.Select((_, i) => start.AddHours(i).ToString("yyyy-MM-ddTHH:mm")).ToArray(),
+                precipitation_probability = hours.Select(h => h.prob).ToArray(),
+                precipitation = hours.Select(h => h.mm).ToArray(),
+                weather_code = hours.Select(h => h.code).ToArray(),
+            },
+        });
+        return JsonDocument.Parse(json).RootElement;
+    }
+
+    [Fact]
+    public void Finds_first_rainy_hour_within_three_hours()
+    {
+        var now = new DateTime(2026, 11, 25, 13, 20, 0);
+        var root = Hourly(new DateTime(2026, 11, 25, 13, 0, 0), 3, (10, 0, 3), (20, 0, 3), (70, 1.2, 61), (90, 3, 63));
+        var r = JsonSerializer.SerializeToElement(WeatherProvider.RainForecast(root, now));
+        Assert.Equal("15:00", r.GetProperty("startsAt").GetString());
+        Assert.Equal("비", r.GetProperty("kind").GetString());
+        Assert.Equal(100, r.GetProperty("inMinutes").GetInt32());
+        Assert.Equal(70, r.GetProperty("probability").GetInt32());
+        Assert.False(r.GetProperty("now").GetBoolean());
+    }
+
+    [Fact]
+    public void Snow_and_nothing_beyond_three_hours()
+    {
+        var now = new DateTime(2026, 11, 25, 13, 0, 0);
+        var snow = Hourly(now, 3, (10, 0, 3), (65, 0.5, 73));
+        Assert.Equal("눈", JsonSerializer.SerializeToElement(WeatherProvider.RainForecast(snow, now)).GetProperty("kind").GetString());
+        var late = Hourly(now, 3, (10, 0, 3), (10, 0, 3), (10, 0, 3), (10, 0, 3), (90, 5, 63)); // 4시간 뒤
+        Assert.Null(WeatherProvider.RainForecast(late, now));
+    }
+}

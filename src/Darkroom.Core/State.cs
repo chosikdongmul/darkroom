@@ -85,6 +85,8 @@ public sealed class SunAlertSettings
     public int LeadMinutes { get; set; } = 30;
     /// <summary>아침 골든아워도 알림(기본은 저녁만)</summary>
     public bool Morning { get; set; }
+    /// <summary>3시간 안에 비·눈 소식이 있으면 알림(날씨를 받기 위해 위치가 Open-Meteo로 전송된다)</summary>
+    public bool Rain { get; set; } = true;
 
     public string? Validate() => LeadMinutes is < 5 or > 180 ? "알림 시간은 5~180분" : null;
 }
@@ -112,6 +114,23 @@ public sealed class CalendarRef
     public string? Color { get; set; }
 }
 
+/// <summary>모든 테마에 덮어 쓰는 사용자 색(강조색·카드 진하기). null이면 테마 값 그대로.</summary>
+public sealed class ThemeCustom
+{
+    public string? Accent { get; set; }
+    /// <summary>카드 배경의 불투명도(0.35~0.98)</summary>
+    public double? CardAlpha { get; set; }
+
+    public const double MinAlpha = 0.35, MaxAlpha = 0.98;
+
+    public string? Validate()
+    {
+        if (Accent != null && !Theme.IsHexColor(Accent)) return "강조색은 #RRGGBB";
+        if (CardAlpha is double a && (double.IsNaN(a) || a < MinAlpha || a > MaxAlpha)) return $"카드 진하기는 {MinAlpha}~{MaxAlpha}";
+        return null;
+    }
+}
+
 public sealed class AppState
 {
     public int Version { get; set; } = 1;
@@ -128,6 +147,9 @@ public sealed class AppState
     public bool ThemeAuto { get; set; }
     public SunAlertSettings Alerts { get; set; } = new();
     public CalendarSettings Calendar { get; set; } = new();
+    public ThemeCustom ThemeCustom { get; set; } = new();
+    /// <summary>전체 화면 앱(게임·영상)이 덮은 모니터의 위젯은 그리기를 멈춘다.</summary>
+    public bool PauseOnFullscreen { get; set; } = true;
     public Dictionary<string, WidgetState> Widgets { get; set; } = new();
 
     public static AppState? TryLoad(string path)

@@ -9,6 +9,7 @@ namespace Darkroom.Providers;
 ///   weather.current = { temperature, apparentTemperature, humidity, windSpeed, cloudCover, code, description, isDay, time }
 ///   weather.daily   = [{ date, max, min, code, description, sunrise, sunset }] (3일)
 ///   weather.sunset  = { date, time, score, label, low, mid, high } 다음 일몰의 노을 점수(없으면 null)
+///   weather.rain    = { kind, startsAt, inMinutes, probability, mm, now } 3시간 안의 비·눈 소식(없으면 null)
 ///   weather.status  = { ok, updatedAt, error, location }
 /// </summary>
 public sealed class WeatherProvider(Func<ProviderSettings> settings, HttpClient? http = null) : IDataProvider
@@ -43,7 +44,7 @@ public sealed class WeatherProvider(Func<ProviderSettings> settings, HttpClient?
             $"https://api.open-meteo.com/v1/forecast?latitude={coords.Item1}&longitude={coords.Item2}") +
             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,cloud_cover,is_day" +
             "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset" +
-            "&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility,precipitation_probability&timezone=auto&forecast_days=3";
+            "&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility,precipitation_probability,precipitation,weather_code&timezone=auto&forecast_days=3";
         try
         {
             using var resp = await _http.GetAsync(url, ct);
@@ -53,6 +54,7 @@ public sealed class WeatherProvider(Func<ProviderSettings> settings, HttpClient?
             bus.Publish("weather.current", current);
             bus.Publish("weather.daily", daily);
             bus.Publish("weather.sunset", SunsetForecast(doc.RootElement, DateTime.Now));
+            bus.Publish("weather.rain", RainForecast(doc.RootElement, DateTime.Now));
             bus.Publish("weather.status", new { ok = true, updatedAt = DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:sszzz"), error = (string?)null, location = s.LocationName });
             _lastOk = true;
         }
@@ -133,6 +135,50 @@ public sealed class WeatherProvider(Func<ProviderSettings> settings, HttpClient?
             label = score >= 75 ? "기대해도 좋음" : score >= 50 ? "괜찮음" : score >= 25 ? "평범" : "어려움",
             low, mid, high,
         };
+    }
+
+    public const int RainHours = 3, RainProbability = 60;
+    public const double RainMm = 0.3;
+
+    static bool IsPrecip(int code) => code is >= 51 and <= 67 or >= 71 and <= 86 or >= 95;
+    static bool IsSnow(int code) => code is >= 71 and <= 77 or 85 or 86;
+
+    /// <summary>
+    /// 앞으로 3시간 안에 비·눈이 올 것 같은 첫 시간(강수확률 60% 이상이거나 강수량 0.3mm 이상).
+    /// { kind: "비"|"눈"|"소나기", startsAt: "HH:mm", inMinutes, probability, mm, now: 지금 오는 중 } 없으면 null.
+    /// </summary>
+    public static object? RainForecast(JsonElement root, DateTime now)
+    {
+        if (!root.TryGetProperty("hourly", out var h) || !h.TryGetProperty("time", out var timeArr)) return null;
+        static double At(JsonElement h, string name, int i) =>
+            h.TryGetProperty(name, out var a) && a.GetArrayLength() > i && a[i].ValueKind == JsonValueKind.Number ? a[i].GetDouble() : 0;
+        int currentCode = root.TryGetProperty("current", out var c) && c.TryGetProperty("weather_code", out var cc) && cc.TryGetInt32(out var v) ? v : 0;
+        var hourStart = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
+        int k = 0;
+        foreach (var t in timeArr.EnumerateArray())
+        {
+            if (DateTime.TryParse(t.GetString(), out var at) && at >= hourStart && at <= now.AddHours(RainHours))
+            {
+                double p = At(h, "precipitation_probability", k), mm = At(h, "precipitation", k);
+                int code = (int)At(h, "weather_code", k);
+                if (p >= RainProbability || mm >= RainMm)
+                {
+                    var start = at < now ? now : at;
+                    string kind = IsSnow(code) ? "눈" : code is >= 80 and <= 82 ? "소나기" : "비";
+                    return new
+                    {
+                        kind,
+                        startsAt = at.ToString("HH:mm"),
+                        inMinutes = (int)Math.Max(0, Math.Round((start - now).TotalMinutes)),
+                        probability = (int)Math.Round(p),
+                        mm = Math.Round(mm, 1),
+                        now = IsPrecip(currentCode),
+                    };
+                }
+            }
+            k++;
+        }
+        return null;
     }
 
     /// <summary>노을 점수(0~100). 중·상층 구름이 적당히(30~70%) 있으면 하늘이 물들 캔버스가 되고,

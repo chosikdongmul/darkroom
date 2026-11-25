@@ -104,6 +104,7 @@ internal sealed partial class AppController : IDisposable
         if (State.Wallpaper.Validate() is { } wbad) { Log.Warn($"배경화면 설정 오류({wbad}) → 기본값"); State.Wallpaper.IntervalMinutes = 30; State.Wallpaper.Fit = "fill"; }
         if (State.Providers.Validate() is { } bad) { Log.Warn($"환경 설정 오류({bad}) → 기본값"); State.Providers = new ProviderSettings(); }
         State.Calendar ??= new CalendarSettings();
+        if (State.ThemeCustom?.Validate() != null || State.ThemeCustom == null) State.ThemeCustom = new ThemeCustom();
         State.Alerts ??= new SunAlertSettings();
         if (State.Alerts.Validate() != null) State.Alerts = new SunAlertSettings();
         _phase = CurrentPhase(); // 위젯을 열기 전에 정해 둬야 처음부터 맞는 색으로 뜬다
@@ -113,7 +114,10 @@ internal sealed partial class AppController : IDisposable
         // DARKROOM_PROCESS_PER_WIDGET=1이면 위젯마다 따로 둔다(비교·문제 확인용).
         var extraArgs = Environment.GetEnvironmentVariable("DARKROOM_WEBVIEW2_ARGS");
         var shared = Environment.GetEnvironmentVariable("DARKROOM_PROCESS_PER_WIDGET") == "1" ? "" : "--process-per-site";
-        var args = string.Join(' ', new[] { shared, extraArgs }.Where(a => !string.IsNullOrWhiteSpace(a)));
+        // 숨긴 위젯(전체 화면 앱 중·전체 숨기기)의 타이머를 5분 뒤 1분 단위로 몰아 깨우는 절약 기능을 끈다:
+        // 타이머 위젯의 "끝났어요" 알림이 늦지 않게. 1초 단위 동작은 그대로라 부담은 거의 없다.
+        const string timers = "--disable-features=IntensiveWakeUpThrottling";
+        var args = string.Join(' ', new[] { shared, timers, extraArgs }.Where(a => !string.IsNullOrWhiteSpace(a)));
         var envOptions = new CoreWebView2EnvironmentOptions(args.Length == 0 ? null : args);
         Env = await CoreWebView2Environment.CreateAsync(null, AppPaths.WebViewData, envOptions);
         Log.Info($"WebView2 런타임 {Env.BrowserVersionString}");
@@ -140,6 +144,8 @@ internal sealed partial class AppController : IDisposable
         StartUpdateChecks();
         StartSunTimer();
         StartMemoryLog();
+        StartFullscreenWatch();
+        UpdateRainWatch();
         SaveStateSoon();
         Changed?.Invoke();
     }
@@ -148,6 +154,7 @@ internal sealed partial class AppController : IDisposable
     {
         SaveNow();
         _sunTimer?.Stop();
+        _fullscreenTimer?.Stop();
         _wallpaper?.Dispose(); // 앱을 꺼도 지금 배경화면은 그대로 둔다(끄기를 눌렀을 때만 되돌림)
         _reloader?.Dispose();
         foreach (var h in _open.Values) h.Dispose();
@@ -414,11 +421,22 @@ internal sealed partial class AppController : IDisposable
     /// <summary>색 테마 + 글꼴 조합을 합친 것. 글꼴 변수가 테마의 fontUi/fontNum을 덮는다. fontCss는 고른 팩의 @font-face.</summary>
     public object ThemePayload()
     {
-        var t = Themes.GetValueOrDefault(EffectiveThemeKey) ?? Themes.Values.First();
+        var t = (Themes.GetValueOrDefault(EffectiveThemeKey) ?? Themes.Values.First()).WithCustom(State.ThemeCustom);
         var vars = t.CssVariables();
         var f = CurrentFont;
         if (f != null) foreach (var (k, v) in f.CssVariables()) vars[k] = v;
         return new { key = t.Key, name = t.Name, tokens = t.Tokens, vars, font = f?.Key, fontCss = f?.Css ?? "" };
+    }
+
+    /// <summary>강조색(#RRGGBB, null=테마 기본)·카드 진하기(null=테마 기본).</summary>
+    public string? SetThemeCustom(ThemeCustom next)
+    {
+        if (next.Validate() is { } err) return err;
+        State.ThemeCustom = new ThemeCustom { Accent = next.Accent?.ToLowerInvariant(), CardAlpha = next.CardAlpha is double a ? Math.Round(a, 2) : null };
+        foreach (var h in _open.Values) h.PushTheme();
+        SaveStateSoon();
+        Changed?.Invoke();
+        return null;
     }
 
     public void SetFont(string key)
@@ -455,7 +473,37 @@ internal sealed partial class AppController : IDisposable
         ["goldenHour"] = "warm-negative", ["blueHour"] = "blue-hour", ["night"] = "safelight",
     };
     string _phase = "day";
-    DispatcherTimer? _memTimer;
+    DispatcherTimer? _memTimer, _fullscreenTimer;
+    IntPtr _coveredMonitor;
+
+    /// <summary>2초마다 전체 화면 앱을 확인해 그 모니터의 위젯 그리기를 멈추거나 다시 시작한다.</summary>
+    void StartFullscreenWatch()
+    {
+        _fullscreenTimer = new DispatcherTimer(TimeSpan.FromSeconds(2), DispatcherPriority.Background, (_, _) => CheckFullscreen(), Dispatcher);
+        _fullscreenTimer.Start();
+    }
+
+    void CheckFullscreen()
+    {
+        var mon = State.PauseOnFullscreen ? FullscreenDetector.CoveredMonitor() : IntPtr.Zero;
+        if (mon != _coveredMonitor)
+        {
+            Log.Info(mon != IntPtr.Zero ? "전체 화면 앱 감지: 그 화면의 위젯 그리기를 멈춤" : "전체 화면 앱 끝: 위젯 다시 그림");
+            _coveredMonitor = mon;
+        }
+        foreach (var h in _open.Values)
+            // "항상 위"·"일반 창" 위젯은 일부러 띄워 둔 것이라 멈추지 않는다(바탕화면·맨 아래 위젯은 어차피 가려져 있다)
+            h.SetPaused(mon != IntPtr.Zero && h.Window is { IsAlive: true } w && w.Mode is WindowModes.Desktop or WindowModes.Bottom
+                        && FullscreenDetector.MonitorOf(w.Hwnd) == mon);
+    }
+
+    public void SetPauseOnFullscreen(bool on)
+    {
+        State.PauseOnFullscreen = on;
+        CheckFullscreen();
+        SaveStateSoon();
+        Changed?.Invoke();
+    }
 
     /// <summary>1분 뒤, 그다음 30분마다 메모리 사용량을 로그에 남긴다(오래 켜 둘 때 새는지 보려고).</summary>
     void StartMemoryLog()
@@ -525,6 +573,34 @@ internal sealed partial class AppController : IDisposable
         }
     }
 
+    // ---------- 비·눈 예보 알림 ----------
+    IDisposable? _rainSub;
+    DateTimeOffset _rainAlertedAt = DateTimeOffset.MinValue;
+
+    /// <summary>알림을 켜 두면 weather.rain을 구독한다(위젯이 없어도 날씨를 받게 된다).</summary>
+    void UpdateRainWatch()
+    {
+        if (State.Alerts.Rain && _rainSub == null)
+            _rainSub = Bus.Subscribe("weather.rain", (_, v) => Dispatcher.BeginInvoke(() => OnRainForecast(v)));
+        else if (!State.Alerts.Rain && _rainSub != null) { _rainSub.Dispose(); _rainSub = null; }
+    }
+
+    void OnRainForecast(JsonElement v)
+    {
+        if (!State.Alerts.Rain || v.ValueKind != JsonValueKind.Object) return;
+        if (v.TryGetProperty("now", out var n) && n.ValueKind == JsonValueKind.True) return; // 이미 오는 중
+        var now = DateTimeOffset.Now;
+        if (now - _rainAlertedAt < TimeSpan.FromHours(3)) return; // 한 번 알리면 3시간은 조용히
+        _rainAlertedAt = now;
+        string kind = v.TryGetProperty("kind", out var k) ? k.GetString() ?? "비" : "비";
+        int mins = v.TryGetProperty("inMinutes", out var m) && m.TryGetInt32(out var mi) ? mi : 0;
+        int prob = v.TryGetProperty("probability", out var p) && p.TryGetInt32(out var pi) ? pi : 0;
+        string at = v.TryGetProperty("startsAt", out var s) ? s.GetString() ?? "" : "";
+        string when = mins < 10 ? "곧" : mins < 60 ? $"{mins}분 뒤" : $"약 {(int)Math.Round(mins / 60.0)}시간 뒤";
+        Log.Info($"알림: {when} {kind}");
+        Notify?.Invoke($"{when} {kind} 소식", $"{at}쯤부터 · 강수확률 {prob}% · {State.Providers.LocationName}");
+    }
+
     public void SetThemeAuto(bool on)
     {
         if (State.ThemeAuto == on) return;
@@ -539,6 +615,7 @@ internal sealed partial class AppController : IDisposable
     {
         if (next.Validate() is { } err) return err;
         State.Alerts = next;
+        UpdateRainWatch();
         SaveStateSoon();
         Changed?.Invoke();
         return null;
@@ -887,6 +964,7 @@ internal sealed partial class AppController : IDisposable
         invalid = InstallErrors.Select(kv => new { folder = kv.Key, error = kv.Value }).ToList(),
         themes = Themes.Values.OrderBy(t => t.Name).Select(t => new { key = t.Key, name = t.Name, tokens = t.Tokens }).ToList(),
         theme = State.Theme,
+        themeCustom = State.ThemeCustom,
         themeErrors = ThemeErrors,
         fonts = Fonts.Values.Select(f => new { key = f.Key, name = f.Name, description = f.Description }).ToList(),
         font = CurrentFont?.Key,
@@ -913,6 +991,7 @@ internal sealed partial class AppController : IDisposable
             logs = AppPaths.Logs,
             update = Updates.Snapshot(),
             checkUpdates = State.CheckUpdates,
+            pauseOnFullscreen = State.PauseOnFullscreen,
         },
         calendar = CalendarSnapshot(),
         sunTime = new
