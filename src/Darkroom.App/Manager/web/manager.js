@@ -247,8 +247,7 @@ function renderLayouts() {
 // ---------- 머리글 ----------
 function renderHeader() {
   renderThemePicker();
-  $("#font").replaceChildren(...state.fonts.map((f) =>
-    el("option", { value: f.key, selected: f.key === state.font, title: f.description || "" }, f.description ? `${f.name} — ${f.description}` : f.name)));
+  renderFontPicker();
   $("#allLocked").checked = state.allLocked;
   $("#allHidden").checked = state.allHidden;
 }
@@ -487,7 +486,7 @@ function renderThemePicker() {
   $("#cardAlphaOut").textContent = `${Math.round(a * 100)}%` + (custom.cardAlpha == null ? " (테마 기본)" : "");
   $("#cardAlphaReset").disabled = custom.cardAlpha == null;
 }
-$("#themeBtn").addEventListener("click", (e) => { e.stopPropagation(); $("#themePop").hidden = !$("#themePop").hidden; });
+$("#themeBtn").addEventListener("click", (e) => { e.stopPropagation(); $("#fontPop").hidden = true; $("#themePop").hidden = !$("#themePop").hidden; });
 $("#themePop").addEventListener("click", (e) => e.stopPropagation());
 document.addEventListener("click", () => { $("#themePop").hidden = true; });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#themePop").hidden = true; });
@@ -500,7 +499,39 @@ $("#cardAlphaReset").addEventListener("click", () => {
   const custom = (state && state.themeCustom) || {};
   send({ type: "setThemeCustom", value: { accent: custom.accent ?? null, cardAlpha: null } });
 });
-$("#font").addEventListener("change", (e) => { send({ type: "setFont", key: e.target.value }); toast("글꼴을 바꿨습니다"); });
+// ---------- 글꼴 조합 고르기: 조합마다 큰 숫자(숫자 글꼴)와 한글 문장(본문 글꼴)을 그 글꼴로 보여 준다 ----------
+const fontCssLoaded = new Set(["pretendard"]);
+function loadFontCss(key) {
+  if (fontCssLoaded.has(key)) return;
+  fontCssLoaded.add(key);
+  document.head.append(el("link", { rel: "stylesheet", href: `https://assets.darkroom/fonts/packs/${encodeURIComponent(key)}/font.css` }));
+}
+function fontSample(f, big) {
+  const num = `font-family:${f.num};font-weight:${f.numWeight};font-style:${f.numStyle};letter-spacing:${f.numTracking};`
+    + `font-variation-settings:${f.numVariation || "normal"};font-size:${Math.round((big ? 34 : 15) * (f.numScale || 1))}px`;
+  return el("span", { class: "font-sample" + (big ? " big" : "") },
+    el("span", { class: "fs-num", style: num }, "12:30"),
+    big ? el("span", { class: "fs-ui", style: `font-family:${f.ui}` }, "다가오는 날 · 11월 25일 수요일") : null);
+}
+function renderFontPicker() {
+  const cur = state.fonts.find((f) => f.key === state.font) || state.fonts[0];
+  if (!cur) return;
+  loadFontCss(cur.key);
+  $("#fontBtn").replaceChildren(fontSample(cur, false), el("span", { style: `font-family:${cur.ui}` }, cur.name), el("span", { class: "caret" }, "▾"));
+  $("#fontGrid").replaceChildren(...state.fonts.map((f) => el("button", {
+    type: "button", class: "font-tile" + (f.key === state.font ? " on" : ""), title: f.description || f.name,
+    onclick: () => { send({ type: "setFont", key: f.key }); toast("글꼴을 바꿨습니다"); },
+  }, fontSample(f, true), el("span", { class: "tile-name" }, f.description ? `${f.name} · ${f.description}` : f.name))));
+}
+$("#fontBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  state.fonts.forEach((f) => loadFontCss(f.key)); // 처음 열 때 모든 조합의 글꼴을 불러온다(보이는 글자만 받는다)
+  $("#themePop").hidden = true;
+  $("#fontPop").hidden = !$("#fontPop").hidden;
+});
+$("#fontPop").addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("click", () => { $("#fontPop").hidden = true; });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#fontPop").hidden = true; });
 $("#allLocked").addEventListener("change", (e) => send({ type: "setAllLocked", value: e.target.checked }));
 $("#allHidden").addEventListener("change", (e) => send({ type: "setAllHidden", value: e.target.checked }));
 $("[data-open-folder]").addEventListener("click", () => send({ type: "openFolder" }));

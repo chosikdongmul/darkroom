@@ -151,7 +151,7 @@ button:disabled { opacity: .45; cursor: default; }
 button { white-space: nowrap; flex: none; }
 .global { flex-wrap: wrap; justify-content: flex-end; }
 .global .field, .global .switch { white-space: nowrap; }
-#font { max-width: 240px; }
+
 .layouts li { cursor: default; }
 .layouts .btns { display: flex; gap: 4px; }
 
@@ -208,3 +208,19 @@ details.advanced.inner summary { margin-bottom: 6px; }
 .accent-chip.custom { display: inline-grid; place-items: center; cursor: pointer; color: #fff; font-weight: 700; font-size: 13px;
   background: var(--c, conic-gradient(#ff5a4a, #ffd54a, #7ed957, #4fc3f7, #b388ff, #ff6ec7, #ff5a4a)); }
 .accent-chip.custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+/* 글꼴 조합 고르기 */
+.font-btn { max-width: 300px; }
+.font-btn > span:nth-child(2) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.font-pop { width: 560px; left: auto; right: 0; }
+.font-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.font-tile { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 8px; border-radius: 10px; background: transparent;
+  border: 1px solid transparent; color: var(--fg); font-weight: 400; text-align: left; }
+.font-tile:hover { background: var(--raised); filter: none; }
+.font-tile.on { border-color: var(--accent); background: var(--raised); }
+.font-tile .tile-name { text-align: left; white-space: normal; }
+.font-sample { display: inline-flex; align-items: baseline; gap: 8px; color: var(--fg); }
+.font-sample .fs-num { line-height: 1; font-variant-numeric: tabular-nums lining-nums; }
+.font-sample.big { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border-radius: 8px;
+  background: #1f1f22; border: 1px solid var(--line); min-height: 86px; }
+.font-sample .fs-ui { font-size: 13px; color: var(--muted); }
