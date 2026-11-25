@@ -1,0 +1,18 @@
+{
+    "name": "Ektachrome",
+    "tokens": {
+        "bg": "rgba(10,48,52,0.78)",
+        "fg": "#e6fbf8",
+        "muted": "rgba(230,251,248,0.62)",
+        "faint": "rgba(230,251,248,0.14)",
+        "accent": "#ffa05d",
+        "inset": "rgba(0,16,18,0.28)",
+        "plot": "rgba(0,16,18,0.30)",
+        "gold": "#ffd166",
+        "blue": "#7fd4e0",
+        "radius": "20px",
+        "shadow": "none",
+        "fontUi": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif",
+        "fontNum": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif"
+    }
+}

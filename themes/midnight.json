@@ -1,0 +1,18 @@
+{
+    "name": "Midnight",
+    "tokens": {
+        "bg": "rgba(0,0,0,0.86)",
+        "fg": "#ffffff",
+        "muted": "rgba(255,255,255,0.62)",
+        "faint": "rgba(255,255,255,0.14)",
+        "accent": "#7ee0c3",
+        "inset": "rgba(0,0,0,0.28)",
+        "plot": "rgba(0,0,0,0.30)",
+        "gold": "#f4c35a",
+        "blue": "#7aa7ff",
+        "radius": "20px",
+        "shadow": "none",
+        "fontUi": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif",
+        "fontNum": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif"
+    }
+}

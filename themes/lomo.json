@@ -1,0 +1,18 @@
+{
+    "name": "Lomo",
+    "tokens": {
+        "bg": "rgba(40,18,52,0.78)",
+        "fg": "#f8ecff",
+        "muted": "rgba(248,236,255,0.62)",
+        "faint": "rgba(248,236,255,0.14)",
+        "accent": "#ff75ca",
+        "inset": "rgba(14,0,20,0.28)",
+        "plot": "rgba(14,0,20,0.30)",
+        "gold": "#e8e15a",
+        "blue": "#8fa8ff",
+        "radius": "24px",
+        "shadow": "none",
+        "fontUi": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif",
+        "fontNum": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif"
+    }
+}

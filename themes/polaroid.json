@@ -1,0 +1,18 @@
+{
+    "name": "Polaroid",
+    "tokens": {
+        "bg": "rgba(252,249,241,0.92)",
+        "fg": "#2a2522",
+        "muted": "rgba(42,37,34,0.60)",
+        "faint": "rgba(42,37,34,0.12)",
+        "accent": "#c84f37",
+        "inset": "rgba(42,37,34,0.06)",
+        "plot": "rgba(42,37,34,0.90)",
+        "gold": "#a8780f",
+        "blue": "#3d64b5",
+        "radius": "10px",
+        "shadow": "none",
+        "fontUi": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif",
+        "fontNum": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif"
+    }
+}

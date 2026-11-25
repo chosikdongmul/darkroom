@@ -60,7 +60,7 @@ function renderTime() {
   $("ampm").textContent = ampm;
   $("ampm").hidden = !ampm;
   $("md").textContent = `${d.getMonth() + 1}월 ${d.getDate()}일`;
-  $("day").textContent = DAYS[d.getDay()];
+  $("day").textContent = `${d.getFullYear()}년 ${DAYS[d.getDay()]}`;
 }
 
 let lastKey = "";

@@ -1,0 +1,18 @@
+{
+    "name": "Portra",
+    "tokens": {
+        "bg": "rgba(58,40,34,0.78)",
+        "fg": "#fbeee4",
+        "muted": "rgba(251,238,228,0.66)",
+        "faint": "rgba(251,238,228,0.14)",
+        "accent": "#ffb38a",
+        "inset": "rgba(30,14,8,0.28)",
+        "plot": "rgba(30,14,8,0.30)",
+        "gold": "#f6c36b",
+        "blue": "#a9b8e0",
+        "radius": "22px",
+        "shadow": "none",
+        "fontUi": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif",
+        "fontNum": "'Pretendard Variable', Pretendard, 'Darkroom Sans', 'Segoe UI', sans-serif"
+    }
+}
