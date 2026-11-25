@@ -21,6 +21,7 @@ internal sealed class ManagerWindow : Window
     {
         _app = app;
         Title = "Darkroom Manager";
+        try { Icon = AppIcon.LoadWpf(); } catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException or IOException) { }
         Width = 980; Height = 680; MinWidth = 760; MinHeight = 480;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Background = new SolidColorBrush(Color.FromRgb(0x24, 0x24, 0x24));

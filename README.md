@@ -1,3 +1,5 @@
+<img src="build/mark.svg" width="88" alt="">
+
 # Darkroom
 
 Windows 바탕화면 위젯. 위젯은 HTML/CSS/JS로 만들고(WebView2), 호스트(C# .NET 8)가 투명 창, 바탕화면 고정, 데이터, 테마를 맡는다.

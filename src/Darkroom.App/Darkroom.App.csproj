@@ -27,6 +27,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Manager\web\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 트레이·Manager 창 아이콘(헌팅캡 아저씨 마크, build\make-icon.ps1로 만든다) -->
+    <EmbeddedResource Include="..\..\build\darkroom.ico" LogicalName="darkroom.ico" />
   </ItemGroup>
 
   <!--

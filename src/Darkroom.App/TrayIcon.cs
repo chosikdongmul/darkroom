@@ -1,5 +1,4 @@
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using WinForms = System.Windows.Forms;
 
@@ -11,17 +10,17 @@ internal sealed class TrayIcon : IDisposable
     readonly AppController _app;
     readonly WinForms.NotifyIcon _icon;
     readonly WinForms.ContextMenuStrip _menu;
-    readonly IntPtr _hIcon;
+    readonly Icon _trayIcon;
 
     public TrayIcon(AppController app, Action openManager, Action exit)
     {
         _app = app;
         _menu = new WinForms.ContextMenuStrip { Renderer = new WinForms.ToolStripProfessionalRenderer(new DarkColors()), ShowImageMargin = false, ShowCheckMargin = true };
         _menu.Opening += (_, _) => Build(openManager, exit);
-        _hIcon = DrawIcon();
+        _trayIcon = AppIcon.Load(WinForms.SystemInformation.SmallIconSize);
         _icon = new WinForms.NotifyIcon
         {
-            Icon = Icon.FromHandle(_hIcon),
+            Icon = _trayIcon,
             Text = "Darkroom",
             ContextMenuStrip = _menu,
             Visible = true,
@@ -107,32 +106,6 @@ internal sealed class TrayIcon : IDisposable
         _menu.Items.Add(Item("종료", exit));
     }
 
-    /// <summary>조리개 모양 아이콘을 코드로 그린다(이미지 파일 불필요).</summary>
-    static IntPtr DrawIcon()
-    {
-        using var bmp = new Bitmap(32, 32);
-        using (var g = Graphics.FromImage(bmp))
-        {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Color.Transparent);
-            using var bg = new SolidBrush(Color.FromArgb(255, 43, 43, 43));
-            g.FillEllipse(bg, 1, 1, 30, 30);
-            using var ring = new Pen(Color.FromArgb(224, 122, 46), 3f);
-            g.DrawEllipse(ring, 3, 3, 26, 26);
-            using var blade = new Pen(Color.FromArgb(200, 242, 242, 242), 1.6f);
-            for (int i = 0; i < 6; i++)
-            {
-                double a = i * Math.PI / 3;
-                float x1 = 16 + (float)(11 * Math.Cos(a)), y1 = 16 + (float)(11 * Math.Sin(a));
-                float x2 = 16 + (float)(5 * Math.Cos(a + 1.9)), y2 = 16 + (float)(5 * Math.Sin(a + 1.9));
-                g.DrawLine(blade, x1, y1, x2, y2);
-            }
-        }
-        return bmp.GetHicon();
-    }
-
-    [DllImport("user32")] static extern bool DestroyIcon(IntPtr h);
-
     public void Dispose()
     {
         _app.Updates.Found -= OnUpdateFound;
@@ -140,7 +113,7 @@ internal sealed class TrayIcon : IDisposable
         _icon.Visible = false;
         _icon.Dispose();
         _menu.Dispose();
-        DestroyIcon(_hIcon);
+        _trayIcon.Dispose();
     }
 
     sealed class DarkColors : WinForms.ProfessionalColorTable
