@@ -185,6 +185,7 @@ details.advanced.inner summary { margin-bottom: 6px; }
 .swatch-card { display: inline-flex; align-items: center; gap: 6px; padding: 3px 7px; border-radius: var(--sw-radius, 8px); flex: none;
   background: linear-gradient(var(--sw-bg), var(--sw-bg)), linear-gradient(135deg, #d8d0c4, #6b7884 55%, #262b31);
   color: var(--sw-fg); font: 600 11px/1.2 "Pretendard Variable", Pretendard, sans-serif; font-variant-numeric: tabular-nums; }
+.swatch-card .sw-time { font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; } /* 옛날식 숫자 글꼴(Cormorant 등)도 위젯처럼 고른 높이로 */
 .swatch-card .sw-bar { width: 14px; height: 4px; border-radius: 2px; background: var(--sw-accent); }
 .theme-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 20; width: 540px; padding: 12px; border-radius: 12px;
   background: var(--panel); border: 1px solid var(--line); box-shadow: 0 12px 32px rgba(0, 0, 0, .45); color: var(--fg); white-space: normal; }
@@ -228,7 +229,7 @@ details.advanced.inner summary { margin-bottom: 6px; }
 .font-sample.big { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 12px 14px; border-radius: 10px;
   background: linear-gradient(var(--fs-bg), var(--fs-bg)), linear-gradient(135deg, #d8d0c4, #6b7884 55%, #262b31); color: var(--fs-fg); min-height: 112px; }
 .font-sample .fs-row { display: flex; align-items: baseline; gap: 6px; }
-.font-sample .fs-sec { color: var(--fs-muted); }
+.font-sample .fs-sec { color: var(--fs-muted); font-variant-numeric: tabular-nums lining-nums; }
 .font-sample .fs-exp { line-height: 1.1; }
 .font-sample .fs-ui { font-size: 12px; color: var(--fs-muted); }
 .theme-pop { max-height: calc(100vh - 90px); overflow-y: auto; }
