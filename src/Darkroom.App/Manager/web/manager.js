@@ -455,12 +455,20 @@ const ACCENTS = ["#ff9f45", "#ff5a4a", "#ff6ec7", "#b388ff", "#6e9bff", "#4fc3f7
 const alphaOf = (rgba) => { const m = /rgba?\(([^)]*)\)/.exec(rgba || ""); const p = m ? m[1].split(",") : []; return p.length > 3 ? Number(p[3]) : 1; };
 const withAlpha = (rgba, a) => { const m = /rgba?\(([^)]*)\)/.exec(rgba || ""); if (!m) return rgba; return `rgba(${m[1].split(",").slice(0, 3).join(",")},${a})`; };
 
-function themeSwatch(t, custom) {
+// 테마 카드는 지금 고른 글꼴로 그린다(글꼴 카드는 지금 테마 색으로) → 서로 맞춰 본 모습을 바로 볼 수 있다
+function themeSwatch(t, custom, big) {
   const tok = t.tokens;
   const accent = (custom && custom.accent) || tok.accent;
   const bg = custom && custom.cardAlpha != null ? withAlpha(tok.bg, custom.cardAlpha) : tok.bg;
-  return el("span", { class: "swatch-card", style: `--sw-bg:${bg};--sw-fg:${tok.fg};--sw-accent:${accent};--sw-radius:${Math.min(parseInt(tok.radius) || 14, 12)}px` },
-    el("span", { class: "sw-time" }, "12:30"), el("span", { class: "sw-bar" }));
+  const f = state.fonts.find((x) => x.key === state.font);
+  if (f) loadFontCss(f.key);
+  const num = f ? `font-family:${f.num};font-weight:${f.numWeight};letter-spacing:${f.numTracking};font-variation-settings:${f.numVariation || "normal"};`
+    + `font-size:${Math.round((big ? 22 : 12) * (f.numScale || 1))}px` : "";
+  const style = `--sw-bg:${bg};--sw-fg:${tok.fg};--sw-muted:${tok.muted};--sw-accent:${accent};--sw-radius:${Math.min(parseInt(tok.radius) || 14, 12)}px`;
+  if (!big) return el("span", { class: "swatch-card", style }, el("span", { class: "sw-time", style: num }, "12:30"), el("span", { class: "sw-bar" }));
+  return el("span", { class: "swatch-card big", style },
+    el("span", { class: "sw-top" }, el("span", { class: "sw-time", style: num }, "12:30"), el("span", { class: "sw-bar" })),
+    el("span", { class: "sw-ui", style: f ? `font-family:${f.ui}` : "" }, "다가오는 날"));
 }
 
 function renderThemePicker() {
@@ -470,7 +478,7 @@ function renderThemePicker() {
   $("#themeGrid").replaceChildren(...state.themes.map((t) => el("button", {
     type: "button", class: "theme-tile" + (t.key === state.theme ? " on" : ""), title: t.name,
     onclick: () => send({ type: "setTheme", key: t.key }),
-  }, themeSwatch(t), el("span", { class: "tile-name" }, t.name))));
+  }, themeSwatch(t, null, true), el("span", { class: "tile-name" }, t.name))));
   // 강조색: 테마 기본 + 고른 색들 + 직접 고르기
   const pick = (accent) => send({ type: "setThemeCustom", value: { accent, cardAlpha: custom.cardAlpha ?? null } });
   const own = custom.accent && !ACCENTS.includes(custom.accent);
@@ -506,12 +514,22 @@ function loadFontCss(key) {
   fontCssLoaded.add(key);
   document.head.append(el("link", { rel: "stylesheet", href: `https://assets.darkroom/fonts/packs/${encodeURIComponent(key)}/font.css` }));
 }
+// 위젯과 같은 규칙으로 그린다: 큰 숫자는 똑바로(시계·디데이·남은 시간), 초·노출값 줄은 조합의 기울기(numStyle),
+// 본문은 본문 글꼴, 배경·글자색은 지금 테마의 카드 색.
 function fontSample(f, big) {
-  const num = `font-family:${f.num};font-weight:${f.numWeight};font-style:${f.numStyle};letter-spacing:${f.numTracking};`
-    + `font-variation-settings:${f.numVariation || "normal"};font-size:${Math.round((big ? 34 : 15) * (f.numScale || 1))}px`;
-  return el("span", { class: "font-sample" + (big ? " big" : "") },
-    el("span", { class: "fs-num", style: num }, "12:30"),
-    big ? el("span", { class: "fs-ui", style: `font-family:${f.ui}` }, "다가오는 날 · 11월 25일 수요일") : null);
+  const s = f.numScale || 1;
+  const base = `font-family:${f.num};font-weight:${f.numWeight};font-variation-settings:${f.numVariation || "normal"};`;
+  const time = el("span", { class: "fs-num", style: `${base}letter-spacing:${f.numTracking};font-size:${Math.round((big ? 40 : 15) * s)}px` }, "12:30");
+  if (!big) return el("span", { class: "font-sample" }, time);
+  const theme = state.themes.find((t) => t.key === state.theme) || state.themes[0];
+  const tok = theme ? theme.tokens : {};
+  const custom = state.themeCustom || {};
+  const bg = custom.cardAlpha != null ? withAlpha(tok.bg, custom.cardAlpha) : tok.bg;
+  return el("span", { class: "font-sample big", style: `--fs-bg:${bg};--fs-fg:${tok.fg};--fs-muted:${tok.muted}` },
+    el("span", { class: "fs-row" }, time,
+      el("span", { class: "fs-sec", style: `${base}font-style:${f.numStyle};font-size:${Math.round(16 * s)}px` }, "45")),
+    el("span", { class: "fs-exp", style: `${base}font-style:${f.numStyle};font-size:${Math.round(13 * s)}px` }, "f/8 · 1/500 · ISO 100"),
+    el("span", { class: "fs-ui", style: `font-family:${f.ui}` }, "다가오는 날 · 11월 25일 수요일"));
 }
 function renderFontPicker() {
   const cur = state.fonts.find((f) => f.key === state.font) || state.fonts[0];

@@ -195,6 +195,10 @@ details.advanced.inner summary { margin-bottom: 6px; }
 .theme-tile.on { border-color: var(--accent); background: var(--raised); }
 .theme-tile .swatch-card { justify-content: space-between; padding: 10px; font-size: 14px; }
 .theme-tile .swatch-card .sw-bar { width: 24px; height: 5px; }
+.swatch-card.big { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.swatch-card.big .sw-top { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.swatch-card.big .sw-time { line-height: 1; }
+.swatch-card.big .sw-ui { font-size: 11px; font-weight: 400; color: var(--sw-muted); text-align: left; }
 .tile-name { font-size: 11px; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .theme-tile.on .tile-name { color: var(--fg); }
 .theme-custom { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
@@ -221,6 +225,10 @@ details.advanced.inner summary { margin-bottom: 6px; }
 .font-tile .tile-name { text-align: left; white-space: normal; }
 .font-sample { display: inline-flex; align-items: baseline; gap: 8px; color: var(--fg); }
 .font-sample .fs-num { line-height: 1; font-variant-numeric: tabular-nums lining-nums; }
-.font-sample.big { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border-radius: 8px;
-  background: #1f1f22; border: 1px solid var(--line); min-height: 86px; }
-.font-sample .fs-ui { font-size: 13px; color: var(--muted); }
+.font-sample.big { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 12px 14px; border-radius: 10px;
+  background: linear-gradient(var(--fs-bg), var(--fs-bg)), linear-gradient(135deg, #d8d0c4, #6b7884 55%, #262b31); color: var(--fs-fg); min-height: 112px; }
+.font-sample .fs-row { display: flex; align-items: baseline; gap: 6px; }
+.font-sample .fs-sec { color: var(--fs-muted); }
+.font-sample .fs-exp { line-height: 1.1; }
+.font-sample .fs-ui { font-size: 12px; color: var(--fs-muted); }
+.theme-pop { max-height: calc(100vh - 90px); overflow-y: auto; }
